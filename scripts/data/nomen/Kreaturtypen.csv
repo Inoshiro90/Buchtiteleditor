@@ -1,0 +1,15 @@
+singular;plural;adjective;prefix;suffix;gender;declinationRule;declinationPattern;campaignSetting;tags
+Aberration;Aberrationen;;;;femininum;schwacheDeklination;W2;Universal;Kreaturen,Aberrationen
+Tier;Tiere;;;;neutrum;starkeDeklination;S4;Universal;Kreaturen,Tiere
+Himmlische;Himmlische;;;;maskulinum;substantiviertesAdjektiv;substantiviertesAdjektiv;Universal;Kreaturen,Himmlische
+Konstrukt;Konstrukte;;;;neutrum;starkeDeklination;S4;Universal;Kreaturen,Konstrukte
+Drache;Drachen;;;;maskulinum;schwacheDeklination;W1;Universal;Kreaturen,Drachen
+Elementar;Elementare;;;;maskulinum;starkeDeklination;S4;Universal;Kreaturen,Elementare
+Feenwesen;Feenwesen;;;;neutrum;starkeDeklination;S6;Universal;Kreaturen,Feenwesen
+Unhold;Unholde;;;;maskulinum;starkeDeklination;S4;Universal;Kreaturen,Unholde
+Riese;Riesen;;;;maskulinum;schwacheDeklination;W1;Universal;Kreaturen,Riesen
+Humanoide;Humanoide;;;;maskulinum;substantiviertesAdjektiv;substantiviertesAdjektiv;Universal;Kreaturen,Humanoide
+Monstrosität;Monstrositäten;;;;femininum;schwacheDeklination;W2;Universal;Kreaturen,Monstrositäten
+Schlick;Schlicke;;;;maskulinum;starkeDeklination;S4;Universal;Kreaturen,Schlicke
+Pflanze;Pflanzen;;;;femininum;schwacheDeklination;W2;Universal;Kreaturen,Pflanzen
+Untote;Untote;;;;maskulinum;substantiviertesAdjektiv;substantiviertesAdjektiv;Universal;Kreaturen,Untote

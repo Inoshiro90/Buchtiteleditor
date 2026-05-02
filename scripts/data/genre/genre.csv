@@ -1,0 +1,101 @@
+﻿title                                                                                                            ;tags                                                                    ;genre
+Die Geschichte {NOM:Volk1|plu|gen|def|art};Geschichte, Völker, {NOM:Volk1|tags};Geschichte
+Die historische Odyssee {NOM:Volk1|plu|gen|def|art};Geschichte, Völker, {NOM:Volk1|tags};Geschichte
+Die Umwälzungen {NOM:Ereignis1|plu|gen|def|art}: Ein Blick in die Vergangenheit;Geschichte, Ereignisse, {NOM:Ereignis1|tags};Geschichte
+Waffenkunst: Ein historischer Überblick über die Evolution {NOM:Waffe1|sgl|gen|def|art};Geschichte, Evolution, Waffen, {NOM:Waffe1|tags};Geschichte
+Aufstieg und Niedergang: Die Schicksale der {COM:Klasse1|auto}gesellschaften;Geschichte, Aufstiege, Niedergänge, Schicksale, Klassen, Gesellschaften, {NOM:Klasse1|tags};Geschichte
+Die Tagebücher {NOM:Klasse1|sgl|gen|ind|art} {NOM:Volk1|plu|gen|def|art};Biographien, Klassen, Völker, {NOM:Klasse1|tags}, {NOM:Volk1|tags};Biographie
+{NAM:Vorname1|rnd|rnd|nom} {NAM:Nachname1|ref:Vorname1|ref:Vorname1|nom}: Die Lebensreise eines {NOM:Klasse1|sgl|gen|-};Biographie, Klassen, {NOM:Klasse1|tags};Biographie
+Im Schatten {NOM:Klasse1|sgl|gen|ind|art}: Die wahre Geschichte von {NAM:Vorname|rnd|rnd|nom} {NAM:Nachname|rnd|rnd|nom};Biographie, Klassen, {NOM:Klasse1|tags};Biographie
+Meine Jahre mit {NOM:Klasse1|sgl|nom|-} {NAM:Vorname|rnd|rnd|nom}: Eine persönliche Erinnerung;Biographie;Biographie
+Durch Höhen und Tiefen: Die Geschichte von {NAM:Vorname|rnd|rnd|nom} {NAM:Nachname|rnd|rnd|nom};Biographie;Biographie
+Die Abenteuer von {NAM:Vorname|rnd|rnd|nom} und Freunden: Eine magische Reise;Kinderbuch, Reisen;Kinderbuch
+{NOM:Klasse1|sgl|gen|def|art}^ treuer Gefährte;Kinderbuch, Klassen, {NOM:Klasse1|tags};Kinderbuch
+Die Suche nach den {NOM:Volk1|plu|dat|def}: Ein Buch voller Magie und Spannung;Kinderbuch, Völker, {NOM:Volk1|tags};Kinderbuch
+Die fantastische Welt von {NOM:Volk1|plu|dat|-}: Gute-Nacht-Geschichten;Kinderbuch, Völker, {NOM:Volk1|tags};Kinderbuch
+Die mutigen {COM:Klasse1|auto}-Helden {NOM:Volk1|plu|gen|def|art}: Geschichten über Freundschaft und Abenteuer;Kinderbuch, Klassen, Völker, {NOM:Klasse1|tags}, {NOM:Volk1|tags};Kinderbuch
+Die {NOM:Beruf1|plu|nom|def|art} {NOM:Volk1|plu|gen|def|art};Handwerk, Berufe, Völker, {NOM:Beruf1|tags}, {NOM:Volk1|tags};Handwerk
+Das Handbuch {NOM:Beruf1|sgl|gen|def|art}: {NOM:Rüstung1|plu|akk|-} verbessern;Handwerk, Berufe, Rüstungen, {NOM:Beruf1|tags}, {NOM:Rüstung1|tags};Handwerk
+Die Handwerksgeheimnisse {NOM:Klasse1|plu|gen|def|art}: Mächtige {NOM:Abenteuerausrüstung1|plu|nom|-};Handwerk, Klassen, Abenteuerausrüstung, {NOM:Klasse1|tags}, {NOM:Abenteuerausrüstung1|tags};Handwerk
+Häute von {NOM:Tier1|plu|dat|-} und deren Verarbeitung;Handwerk, Fellverarbeitung, Tiere, {NOM:Tier1|tags};Handwerk
+{NOM:Volk1|plu|nom|-} und die Herstellung von {NOM:Waffe1|plu|dat|-};Handwerk, Herstellung, Völker, Waffen, {NOM:Volk1|tags}, {NOM:Waffe1|tags};Handwerk
+Verhext und verzaubert: Die {FUN:d20|5} magischen Rezepte {NOM:Volk1|plu|gen|def|art};Kochkunst, Rezepte, Völker, {NOM:Volk1|tags};Kochkunst
+Die Küchengeheimnisse {NOM:Volk1|plu|gen|def|art}: {FUN:d20|5} kulinarische Leckereien;Kochkunst, Völker, {NOM:Volk1|tags};Kochkunst
+Kochen wie die {NOM:Volk1|plu|gen|def}: {FUN:d20|5} Rezepte für deine Küche;Kochkunst, Rezepte, Völker, {NOM:Volk1|tags};Kochkunst
+Die Küche {NOM:Klasse1|plu|gen|def|art}: Würzige Köstlichkeiten aus endlosen {NOM:Gebäude1|plu|dat|-};Kochkunst, Klassen, Gebäude, {NOM:Klasse1|tags}, {NOM:Gebäude1|tags};Kochkunst
+Die legendären Gerichte {NOM:Beruf1|plu|gen|def|art};Kochkunst, Berufe, {NOM:Beruf1|tags};Kochkunst
+Die Gebete {NOM:Volk1|plu|gen|def|art};Völkerkunde, Religion, Gebete, Völker, {NOM:Volk1|tags};Völkerkunde
+Die nomadischen Stämme {NOM:Volk1|plu|gen|def|art}: Eine Betrachtung {NOM:Volk1|plu|gen|def|art} und ihrer Lebensweise auf der Wanderung;Völkerkunde, Nomadentum, Völker, {NOM:Volk1|tags};Völkerkunde
+Die Kultur {NOM:Volk1|plu|gen|def|art} und ihre Reise durch {NOM:Terrain1|plu|akk|-};Völkerkunde, Kultur, Völker, Reisen, Terrain, {NOM:Volk1|tags}, {NOM:Terrain1|tags};Völkerkunde
+Das Volk {NOM:Volk1|plu|gen|def|art}: Eine Studie über deren {NOM:Beruf1|plu|akk|def} und {NOM:Klasse1|plu|akk|def};Völkerkunde, Völker, Berufe, Klassen, {NOM:Volk1|tags}, {NOM:Beruf1|tags}, {NOM:Klasse1|tags};Völkerkunde
+Die {NOM:Volk1|plu|nom|def} {NOM:Terrain1|plu|gen|def|art}: Einblicke in das Leben eines verborgenen Volkes;Völkerkunde, Völker, Terrain, {NOM:Volk1|tags}, {NOM:Terrain1|tags};Völkerkunde
+{NOM:Klasse1|sgl|nom|def|art} und {NOM:Volk1|sgl|nom|def|art};Belletristik, Klassen, Völker, {NOM:Klasse1|tags}, {NOM:Volk1|tags};Belletristik
+Die Chroniken {NOM:Terrain1|sgl|gen|def|art}: Ein Epos;Belletristik, Terrain, {NOM:Terrain1|tags};Belletristik
+Die Träume {NAM:Vorname|rnd|rnd|gen} : Ein Roman über Mut und Selbstfindung ;Belletristik, Mut, Selbstfindung;Belletristik
+{NAM:Vorname|rnd|rnd|gen} Pfad des Schicksals: Eine Geschichte über Freundschaft in {NOM:Terrain1|plu|dat|def|art};Belletristik, Terrain, {NOM:Terrain1|tags};Belletristik
+{NOM:Beruf1|sgl|nom|def|art}: Die Suche nach Hoffnung in {NOM:Terrain1|plu|dat|def|art};Belletristik, Beruf, Terrain, {NOM:Beruf1|tags}, {NOM:Terrain1|tags};Belletristik
+Die Gemälde {NOM:Klasse1|plu|gen|def|art};Bildende Kunst, Gemälde, Klassen, {NOM:Klasse1|tags};Bildende Kunst
+{NOM:Volk1|plu|nom|-} und das Kunsthandwerk: {ADJ:PersonAussehen|plu|nom|neu|-}^ Objekte aus {NOM:Metall1|sgl|dat|def};Bildende Kunst, Völker, Kunsthandwerk, Objekte, Metalle, {NOM:Volk1|tags}, {NOM:Metall1|tags};Bildende Kunst
+Die Architektur {NOM:Klasse1|plu|gen|def|art}: {ADJ:PersonAussehen|plu|nom|neu|-}^ Bauwerke im Reich {NOM:Volk1|plu|gen|def|art};Bildende Kunst, Architektur, Klassen, Bauwerke, Völker, {NOM:Klasse1|tags}, {NOM:Volk1|tags};Bildende Kunst
+Die Kunst {NOM:Beruf1|plu|gen|def|art}: Grobe Skizzen von {NOM:Volk1|plu|dat|-};Bildende Kunst, Berufe, Völker, Skizzen, {NOM:Beruf1|tags}, {NOM:Volk1|tags};Bildende Kunst
+{NOM:Volk1|plu|nom|-} und die Malerei: Die Einflüsse von {NOM:Waffe1|plu|dat|-} und {NOM:Abenteuerausrüstung1|plu|dat|-};Bildende Kunst, Malerei, Völker, Waffen, Abenteuerausrüstung, {NOM:Waffe1|tags}, {NOM:Abenteuerausrüstung1|tags};Bildende Kunst
+Die legendären Landschaften {NOM:Terrain1|plu|gen|def|art};Geographie, Terrain {NOM:Terrain1|tags};Geographie
+Von {NOM:Klasse1|plu|dat|-} geschaffene {NOM:Terrain1|plu|nom|-};Geographie, Klassen, Terrain, {NOM:Klasse1|tags}, {NOM:Terrain1|tags};Geographie
+Die Mysterien {NOM:Terrain1|plu|gen|def|art};Geographie, Mysterien, Terrain, {NOM:Terrain1|tags};Geographie
+Die Kartierung der {COM:Metall1|auto}{NOM:Terrain1|plu|gen|def}_;Geographie, Kartierung, Metall, Terrain, {NOM:Metall1|tags}, {NOM:Terrain1|tags};Geographie
+Die {COM:Waffe1|auto}{NOM:Terrain1|plu|nom|def}_: Eine geographische Studie;Geographie, Studien, Terrain, {NOM:Terrain1|tags};Geographie
+Gespräche zwischen {NOM:Volk1|plu|dat|def|art} und {NOM:Volk2|plu|dat|def|art};Sprache, Kommuniation, Völker, {NOM:Volk1|tags}, {NOM:Volk1|tags};Sprache
+Die Dialekte {NOM:Terrain1|sgl|gen|def|art}: Eine sprachliche Vielfalt;Sprache, Dialekte, Terrain, {NOM:Terrain1|tags};Sprache
+Die Grammatik {NOM:Beruf1|plu|gen|def|art}: Ein Lehrbuch für angehende Sprachwissenschaftler;Sprache, Grammatik, Berufe, Lehrbuch, {NOM:Beruf1|tags};Sprache
+Die Namen und Bezeichnungen {NOM:Beruf1|plu|gen|def|art}: Eine lexikalische Sammlung;Sprache, Namen, Bezeichnungen, Gebäude, Sammlungen, {NOM:Beruf1|tags};Sprache
+Die Mundarten {NOM:Klasse1|plu|gen|def|art}: Eine linguistische Studie;Sprache, Mundarten, Klassen, Linguistik, Studien, {NOM:Klasse1|tags};Sprache
+Das Rechtswesen {NOM:Volk1|plu|gen|def|art};Recht, Rechtswesen, Völker, {NOM:Volk1|tags};Recht
+Die Schutzverordnungen der {COM:Kreaturtyp1|auto}haltung ;Recht, Schutzverordnungen, Kreaturen, {NOM:Kreaturtyp1|tags};Recht
+Rechte und Pflichten {NOM:Beruf1|plu|gen|def|art};Recht, Rechte, Pflichten, Beruf, {NOM:Beruf1|tags};Recht
+{NOM:Volk1|plu|nom|-} und das Familienrecht;Recht, Familienrecht, Völker, {NOM:Volk1|tags};Recht
+{COM:Waffe1|auto}nutzung im Fall {NAM:Vorname|rnd|rnd|nom} {NAM:Nachname|rnd|rnd|nom};Recht, Waffen, {NOM:Waffe1|tags};Recht
+Die Spiele {NOM:Volk1|plu|gen|def|art};Freizeit, Spiele, Völker {NOM:Volk1|tags};Freizeit
+Denkspiele der {COM:Klasse1|auto}akademie: Herausforderungen für ehemalige {NOM:Beruf1|plu|akk|-} und {NOM:Beruf2|plu|akk|-};Freizeit, Denkspiele, Klassen, Herausforderungen, Berufe, {NOM:Klasse1|tags}, {NOM:Beruf1|tags}, {NOM:Beruf2|tags};Freizeit
+Basteln mit {NOM:Metall1|sgl|akk|-} und {NOM:Metall2|sgl|akk|-};Freizeit, Basteln, Metalle, {NOM:Metall1|tags}, {NOM:Metall2|tags};Freizeit
+{COM:Volk1|auto}schnitzereien: {ADJ:PersonAussehen|plu|nom|fem|-}^ Figuren und Skulpturen;Freizeit, Schnitzereien, Figuren, Skulpturen, Völker, {NOM:Volk1|tags};Freizeit
+Kartenspielen mit {NOM:Volk1|plu|dat|def|art}: Mit Tipps und Tricks zum Sieg;Freizeit, Kartenspiele, Tipps, Tricks, Völker, {NOM:Volk1|tags};Freizeit
+Die Magie {NOM:Klasse1|plu|gen|def|art};Magie, Klassen, {NOM:Klasse1|tags};Magie
+Die geheimen Künste der {COM:Kreaturtyp1|auto}magie;Magie, Kreaurentypen, {NOM:Kreaturtyp1|tags};Magie
+Die Weisheit {NOM:Volk1|plu|gen|def|art}: Magische Rituale und Beschwörungen;Magie, Völker, Rituale, Beschwörungen, {NOM:Volk1|tags};Magie
+Arkane Geheimnisse: Einblicke in die Welt der {NOM:Klasse1|plu|gen|def} und {NOM:Klasse2|plu|gen|def};Magie, Arkanes, Geheimnisse, Klassen, {NOM:Klasse1|tags}, {NOM:Klasse2|tags};Magie
+{COM:Terrain1|auto}magie: Die Kraft des Terrains und ihre Anwendung;Magie, Terrain, {NOM:Terrain1|tags};Magie
+{NOM:Klasse1|plu|nom|-} und ihre Heilmethoden;Heilkunde, Klassen, {NOM:Klasse1|tags};Heilkunde
+Die Heilkunst {NOM:Volk1|plu|gen|def|art};Heilkunde, Völker, {NOM:Volk1|tags};Heilkunde
+Die Weisheit {NOM:Beruf1|plu|gen|def|art}: Traditionelle Heilmethoden aus {COM:Beruf1|auto}kulturen;Heilkunde, Weisheiten, Heilmethoden, Traditionen, {NOM:Beruf1|tags};Heilkunde
+{COM:Volk1|auto}hexerei und {COM:Klasse1|auto}kunst in der Pflanzenheilkunde;Heilkunde, Völker, Klassen, {NOM:Volk1|tags}, {NOM:Klasse1|tags};Heilkunde
+{COM:Klasse1|auto}heilkunst: Die Harmonie von Körper und Geist;Heilkunde, Klassen, Harmonie, Körper, Geist, {NOM:Klasse1|tags};Heilkunde
+Die Anatomie {NOM:Volk1|plu|gen|def|art};Naturkunde, Anatomie, Völker, {NOM:Volk1|tags};Naturkunde
+Bestiarium der Kreaturen: Eine Enzyklopädie {NOM:Kreaturtyp1|plu|gen|def|art};Naturkunde, Bestiarium, Kreaturen, Enzyklopädien, {NOM:Kreaturtyp1|tags};Naturkunde
+Flora und Fauna {NOM:Terrain1|sgl|gen|def|art}: Eine botanische und zoologische Studie;Naturkunde, Flora, Fauna, Terrain, Botanik, Zoologie, Studien, {NOM:Terrain1|tags};Naturkunde
+Das Reich {NOM:Kreaturtyp1|plu|gen|def|art}: Eine Untersuchung ber die Lebensweise und Lebensräume von {NOM:Kreaturtyp1|plu|dat|-};Naturkunde, Kreaturen, Lebensweisen, Lebensräume, {NOM:Kreaturtyp1|tags};Naturkunde
+Die Wunder der Natur: Entdeckungsreisen durch fantastische {NOM:Terrain1|plu|akk|def};Naturkunde, Wunder, Natur, Reisen, Entdeckungen, Terrain, {NOM:Terrain1|tags};Naturkunde
+Tanz und Theater mit {NOM:Volk1|plu|dat|-} und {NOM:Volk2|plu|dat|-};Darstellende Künste, Tanz, Theater, Völker, {NOM:Volk1|tags}, {NOM:Volk2|tags};Darstellende Künste
+Tanz {NOM:Volk1|plu|gen|def|art}: Eine Studie über den Ausdruckstanz in {COM:Volk1|auto}gesellschaften;Darstellende Künste, Tanz, Völker, Studien, Ausdruckstanz, Gesellschaften, {NOM:Volk1|tags};Darstellende Künste
+{COM:Kreaturtyp1|auto}choreographie: Eine Darstellung mit mythischen Wesen;Darstellende Künste, Choreographien, Darstellungen, Kreaturen, {NOM:Kreaturtyp1|tags};Darstellende Künste
+Die {NOM:Klasse1|plu|nom|def} der Bühne: Eine Geschichte des Theaters;Darstellende Künste, Klassen, Bühnen, Geschichten, Theater, {NOM:Klasse1|tags};Darstellende Künste
+Die Lieder {NOM:Volk1|plu|gen|def|art}: Eine musikalische Darstellung;Darstellende Künste, Musik, Lieder, Völker, {NOM:Volk1|tags};Darstellende Künste
+Die Philosophie {NOM:Volk1|plu|gen|def|art};Philosophie, Völker, {NOM:Volk1|tags};Philosophie
+Die Weisheit {NOM:Kreaturtyp1|plu|gen|def|art}: Eine philosophische Abhandlung über die Natur der Weisheit und die Lehren {NOM:Kreaturtyp1|plu|gen|def|art};Philosophie, Kreaturen, Weisheiten, Abhandlungen, Lehren, {NOM:Kreaturtyp1|tags};Philosophie
+Die Ethik {NOM:Beruf1|plu|gen|def|art}: Eine Studie über die moralischen Prinzipien der {COM:Beruf1|auto}kultur und ihre Bedeutung;Philosophie, Berufe, Ethik, Studien, Moral, Prinzipien, Kulturen, {NOM:Beruf1|tags};Philosophie
+Die Weisheit {NOM:Terrain1|plu|gen|def|art}: Eine philosophische Reise durch {NOM:Terrain1|plu|akk|-} und die Lehren für die {COM:Volk1|auto}seele;Philosophie, Weisheiten, Reisen, Lehren, Terrain, Völker, Seelen, {NOM:Terrain1|tags}, {NOM:Volk1|tags};Philosophie
+Der Weg {NOM:Klasse1|sgl|gen|def|art}: Die philosophische Betrachtung eines {NOM:Klasse1|sgl|gen|-};Philosophie, Wege, Betrachungen, Klassen, {NOM:Klasse1|tags};Philosophie
+Die Psyche {NOM:Klasse1|plu|gen|def|art}: Eine psychologische Analyse;Psychologie, Psyche, Klassen, Analysen, {NOM:Klasse1|tags};Psychologie
+Die Traumwelten {NOM:Volk1|plu|gen|def|art}: Traumdeutung und psychologische Aspekte;Psychologie, Träume, Traumdeutung, Völker, {NOM:Volk1|tags};Psychologie
+Die Tränen {NOM:Beruf1|plu|gen|def|art}: Emotionen und psychische Zustände;Psychologie, Emotionen, Berufe, {NOM:Beruf1|tags};Psychologie
+Die Geheimnisse {NOM:Volk1|plu|gen|def|art}: Identität und Persönlichkeit;Psychologie, Geheimnisse, Völker, Identitäten, Persönlichkeiten, {NOM:Volk1|tags};Psychologie
+Die Einsamkeit {NOM:Kreaturtyp1|plu|gen|def|art}: Gefühle und Isolation;Psychologie, Einsamkeit, Kreaturen, Gefühle, Isolation, {NOM:Kreaturtyp1|tags};Psychologie
+Die {COM:Terrain1|auto}rituale {NOM:Volk1|plu|gen|def|art};Religion, Rituale, Terrain, Völker, {NOM:Volk1|tags};Religion
+Die Gottheiten {NOM:Terrain1|sgl|gen|def|art}: Pantheons und Leben;Religion, Gottheiten, Terrain, Pantheons, Leben {NOM:Terrain1|tags};Religion
+Die Prophezeiungen {NOM:Beruf1|sgl|gen|def|art}: Mysterien und Eingebungen;Religion, Prophezeiungen, Berufe, Mysterien, Eingebungen, {NOM:Beruf1|tags};Religion
+Die Weisheit {NOM:Klasse1|plu|gen|def|art}: Überlieferungen und Bedeutungen;Religion, Weisheiten, Klassen, Überlieferungen, Bedeutungen, {NOM:Klasse1|tags};Religion
+Die Prüfungen {NOM:Volk1|plu|gen|def|art}: Herausforderungen und Suche nach göttlicher Führung;Religion, Prüfungen, Völker, Herausforderungen, Suchen, Göttliche Führung, {NOM:Volk1|tags};Religion
+Das Turnier {NOM:Volk1|plu|gen|def|art};Sport, Turniere, Völker, {NOM:Volk1|tags};Sport
+Die Rennen der {COM:Kreaturtyp1|auto}reiter;Sport, Rennen, Kreaturen, {NOM:Kreaturtyp1|tags};Sport
+Wettkampf {NOM:Beruf1|plu|gen|def|art};Sport, Wettkämpfe, Berufe, {NOM:Beruf1|tags};Sport
+Die Duelle {NOM:Klasse1|plu|gen|def|art};Sport, Duelle, Klassen, {NOM:Klasse1|tags};Sport
+Die {COM:Volk1|auto}champions der Arena;Sport, Champions, Völker, Arenen, {NOM:Volk1|tags};Sport

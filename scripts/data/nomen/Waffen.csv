@@ -1,0 +1,51 @@
+singular;plural;adjective;prefix;suffix;gender;declinationRule;declinationPattern;campaignSetting;tags
+Anderthalbhänder;Anderthalbhänder;;;;maskulinum;starkeDeklination;S6;Universal;Nahkampfwaffen,Anderthalbhänder
+Beil;Beile;;;;neutrum;starkeDeklination;S4;Universal;Wurfwaffen,Beile
+Blasrohr;Blasrohre;;;;neutrum;starkeDeklination;S4;Universal;Fernkampfwaffen,Blasrohre
+Boomerang;Boomerangs;;;;maskulinum;fremdWort;fremdWort;Universal;Wurfwaffen,Boomerangs
+Dolch;Dolche;;;;maskulinum;starkeDeklination;S4;Universal;Nahkampfwaffen,Wurfwaffen,Dolche
+Dreizack;Dreizacke;;;;maskulinum;starkeDeklination;S4;Universal;Nahkampfwaffen,Dreizacke
+Flegel;Flegel;;;;maskulinum;starkeDeklination;S6;Universal;Nahkampfwaffen,Flegel
+Gleve;Gleven;;;;femininum;schwacheDeklination;W2;Universal;Nahkampfwaffen,Gleven
+Kurzspeer;Kurzspeere;hakenförmige;;;maskulinum;starkeDeklination;S4;Universal;Nahkampfwaffen,Hakenförmige Kurzspeere
+Handarbrust;Handarmbrüste;;;;femininum;starkeDeklination;S3;Universal;Fernkampfwaffen,Handarmbrüste
+Hellebarde;Hellebarden;;;;femininum;schwacheDeklination;W2;Universal;Nahkampfwaffen,Hellebarden
+Hoopak;Hoopaks;;;;neutrum;fremdWort;fremdWort;Universal;Nahkampfwaffen,Hoopaks
+Waffe;Waffen;improvisierte;;;femininum;schwacheDeklination;W2;Universal;Improvisierte Waffen
+Kampfstab;Kampfstäbe;;;;maskulinum;starkeDeklination;S1;Universal;Nahkampfwaffen,Kampfstäbe
+Knüppel;Knüppel;;;;maskulinum;starkeDeklination;S6;Universal;Nahkampfwaffen,Knüppel
+Kriegshacke;Kriegshacken;;;;femininum;schwacheDeklination;W2;Universal;Nahkampfwaffen,Kriegshacken
+Kriegshammer;Kriegshämmer;;;;maskulinum;starkeDeklination;S5;Universal;Nahkampfwaffen,Kriegshämmer
+Krummsäbel;Krummsäbel;;;;maskulinum;starkeDeklination;S6;Universal;Nahkampfwaffen,Krummsäbel
+Kurzbogen;Kurzbogen;;;;maskulinum;starkeDeklination;S6;Universal;Fernkampfwaffen,Kurzbogen
+Kurzschwert;Kurzschwerter;;;;neutrum;starkeDeklination;S2;Universal;Nahkampfwaffen,Kurzschwerter
+Langbogen;Langbogen;;;;maskulinum;starkeDeklination;S6;Universal;Fernkampfwaffen,Langbogen
+Langschwert;Langschwerter;;;;neutrum;starkeDeklination;S2;Universal;Nahkampfwaffen,Langschwerter
+Lanze;Lanzen;;;;femininum;schwacheDeklination;W2;Universal;Nahkampfwaffen,Lanzen
+Armbrust;Armbrüste;leichte;;;femininum;starkeDeklination;S3;Universal;Fernkampfwaffen,Leichte Armbrüste
+Repetierarmbrust;Repetierarmbrüste;leichte;;;femininum;starkeDeklination;S3;Universal;Fernkampfwaffen,Leichte Repetierarmbrüste
+Hammer;Hämmer;leichte;;;maskulinum;starkeDeklination;S5;Universal;Nahkampfwaffen,Leichte Hämmer
+Morgenstern;Morgensterne;;;;maskulinum;starkeDeklination;S4;Universal;Nahkampfwaffen,Morgensterne
+Netz;Netze;;;;neutrum;starkeDeklination;S4;Universal;Wurfwaffen,Netze
+Peitsche;Peitschen;;;;femininum;schwacheDeklination;W2;Universal;Nahkampfwaffen,Peitschen
+Pike;Piken;;;;femininum;schwacheDeklination;W2;Universal;Nahkampfwaffen,Piken
+Rapier;Rapiere;;;;neutrum;gemischteDeklination;W3;Universal;Nahkampfwaffen,Rapiere
+Schlagring;Schlagringe;;;;maskulinum;starkeDeklination;S4;Universal;Nahkampfwaffen,Schlagringe
+Schleuder;Schleudern;;;;femininum;schwacheDeklination;W2;Universal;Fernkampfwaffen,Schleudern
+Armbrust;Armbrüste;schwere;;;femininum;starkeDeklination;S3;Universal;Fernkampfwaffen,Armbrüste
+Sense;Sensen;;;;femininum;schwacheDeklination;W2;Universal;Nahkampfwaffen,Sensen
+Sichel;Sicheln;;;;femininum;schwacheDeklination;W2;Universal;Nahkampfwaffen,Sicheln
+Speer;Speere;;;;maskulinum;starkeDeklination;S4;Universal;Nahkampfwaffen,Wurfwaffen,Speere
+Stachelkette;Stachelketten;;;;femininum;schwacheDeklination;W2;Universal;Nahkampfwaffen,Stachelketten
+Streitaxt;Streitäxte;;;;femininum;starkeDeklination;S3;Universal;Nahkampfwaffen,Streitäxte
+Streitkolben;Streitkolben;;;;maskulinum;starkeDeklination;S6;Universal;Nahkampfwaffen,Streitkolben
+Tonfa;Tonfas;;;;neutrum;fremdWort;fremdWort;Universal;Nahkampfwaffen,Tonfas
+Langbogen;Langbögen;übergroße;;;maskulinum;starkeDeklination;S5;Universal;Fernkampfwaffen,Übergroße Langbögen
+Wurfpfeil;Wurfpfeile;;;;maskulinum;starkeDeklination;S4;Universal;Wurfwaffen,Wurfpfeile
+Wurfspeer;Wurfspeere;;;;maskulinum;starkeDeklination;S4;Universal;Wurfwaffen,Wurfspeere
+Ylkwa;Ylkwas;;;;neutrum;fremdWort;fremdWort;Universal;Nahkampfwaffen,Ylkwas
+Zweihandaxt;Zweihandäxte;;;;femininum;starkeDeklination;S3;Universal;Nahkampfwaffen,Zweihandäxte
+Zweihandhammer;Zweihandhämmer;;;;maskulinum;starkeDeklination;S5;Universal;Nahkampfwaffen,Zweihandhämmer
+Zweihandknüppel;Zweihandknüppel;;;;maskulinum;starkeDeklination;S6;Universal;Nahkampfwaffen,Zweihandknüppel
+Zweihandschwert;Zweihandschwerter;;;;neutrum;starkeDeklination;S2;Universal;Nahkampfwaffen,Zweihandschwerter
+Krummsäbel;Krummsäbel;zweiklingige;;;maskulinum;starkeDeklination;S6;Universal;Nahkampfwaffen,Zweiklingige Krummsäbel

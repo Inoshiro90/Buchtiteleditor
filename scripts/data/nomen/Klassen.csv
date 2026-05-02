@@ -1,0 +1,15 @@
+singular;plural;adjective;prefix;suffix;gender;declinationRule;declinationPattern;campaignSetting;tags
+Barbar;Barbaren;;;;maskulinum;schwacheDeklination;W1;Universal;Krieger,Barbaren
+Barde;Barden;;;;maskulinum;schwacheDeklination;W1;Universal;Experten,Barden
+Druide;Druiden;;;;maskulinum;schwacheDeklination;W1;Universal;Priester,Druiden
+Hexenmeister;Hexenmeister;;;;maskulinum;starkeDeklination;S6;Universal;Arkanisten,Hexenmeister
+Kämpfer;Kämpfer;;;;maskulinum;starkeDeklination;S6;Universal;Krieger,Kämpfer
+Kleriker;Kleriker;;;;maskulinum;starkeDeklination;S6;Universal;Priester,Kleriker
+Magier;Magier;;;;maskulinum;starkeDeklination;S6;Universal;Arkanisten,Magier
+Mönch;Mönche;;;;maskulinum;starkeDeklination;S4;Universal;Krieger,Mönche
+Paladin;Paladine;;;;maskulinum;starkeDeklination;S4;Universal;Priester,Paladine
+Schurke;Schurken;;;;maskulinum;schwacheDeklination;W1;Universal;Experten,Schurken
+Waldläufer;Waldläufer;;;;maskulinum;starkeDeklination;S6;Universal;Experten,Waldläufer
+Zauberer;Zauberer;;;;maskulinum;starkeDeklination;S6;Universal;Arkanisten,Zauberer
+Magieschmied;Magieschmiede;;;;maskulinum;starkeDeklination;S4;Universal;Arkanisten,Magieschmiede
+Blutjäger;Blutjäger;;;;maskulinum;starkeDeklination;S6;Universal;Krieger,Blutjäger

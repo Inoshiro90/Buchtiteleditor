@@ -1,0 +1,10 @@
+singular;plural;adjective;prefix;suffix;gender;declinationRule;declinationPattern;campaignSetting;tags
+Brustplatte;Brustplatten;;;;femininum;schwacheDeklination;W2;Universal;Schwere Rüstungen,Brustplatten
+Fellrüstung;Fellrüstungen;;;;femininum;schwacheDeklination;W2;Universal;Mittelschwere Rüstungen,Fellrüstungen
+Rüstung;Rüstungen;gefütterte;;;femininum;schwacheDeklination;W2;Universal;Leichte Rüstungen,Gefütterte Rüstungen
+Kettenhemd;Kettenhemden;;;;neutrum;gemischteDeklination;W3;Universal;Mittelschwere Rüstungen,Kettenhemden
+Kettenpanzer;Kettenpanzer;;;;maskulinum;starkeDeklination;S6;Universal;Schwere Rüstungen,Kettenpanzer
+Lederrüstung;Lederrüstungen;;;;femininum;schwacheDeklination;W2;Universal;Mittelschwere Rüstungen,Lederrüstungen
+Plattenpanzer;Plattenpanzer;;;;maskulinum;starkeDeklination;S6;Universal;Schwere Rüstungen,Plattenpanzer
+Schienenpanzer;Schienenpanzer;;;;maskulinum;starkeDeklination;S6;Universal;Schwere Rüstungen,Schienenpanzer
+Schuppenpanzer;Schuppenpanzer;;;;maskulinum;starkeDeklination;S6;Universal;Mittelschwere Rüstungen,Schuppenpanzer
