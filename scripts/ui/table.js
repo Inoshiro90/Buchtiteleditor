@@ -2,6 +2,7 @@
 import { AppStore } from '../store/AppStore.js';
 import { db } from '../db/db.js';
 import { detectDuplicates, runCrossClassCheck, countCrossClassDuplicates } from '../services/duplicate-service.js';
+import { touchModified, touchAccessed, setRowCount } from '../services/schema-meta-service.js';
 import { DSLCellRenderer, DSLCellEditor, setActiveDSLEditor } from './cell-dsl.js';
 import { validateDSL, buildKnownLemmas } from '../services/dsl-validator.js';
 import {
@@ -74,6 +75,10 @@ async function loadSchemaData(schema) {
 
   AppStore.set('rows', withCross);
   AppStore.set('crossClassDuplicates', withCross.filter(r => r._isCrossClassDuplicate));
+
+  // Track access and row count in metadata
+  touchAccessed(schema.id);
+  setRowCount(schema.id, withCross.length);
 
   // Build AG Grid
   buildGrid(container, schema, withCross);
@@ -294,6 +299,7 @@ async function persistChange(params) {
 
   // Persist to IndexedDB
   await db.set('tables', schema.id, withCross);
+  touchModified(schema.id, withCross.length);
 }
 
 async function addRow() {

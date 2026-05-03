@@ -4,6 +4,7 @@
     import { parseCsv } from './services/csv-service.js';
     import { detectDuplicates } from './services/duplicate-service.js';
     import { initSidebar, restoreTheme } from './ui/sidebar.js';
+    import { touchCreated, touchModified } from './services/schema-meta-service.js';
     import { initToolbar } from './ui/toolbar.js';
     import { initTable } from './ui/table.js';
     import { initStatusbar } from './ui/statusbar.js';
@@ -101,8 +102,13 @@
       } catch (_) { }
       AppStore.set('schemas', schemas);
 
+      // Seed createdAt metadata for all schemas (no-op if already set)
+      for (const schema of schemas) {
+        await touchCreated(schema.id);
+      }
+
       // Init UI components
-      initSidebar(document.getElementById('sidebar'));
+      await initSidebar(document.getElementById('sidebar'));
       initToolbar(document.getElementById('toolbar'));
       await initTable(document.getElementById('table-container'));
       initStatusbar(document.getElementById('statusbar'));

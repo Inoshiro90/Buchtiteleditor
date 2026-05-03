@@ -1,7 +1,15 @@
-// editor/ui/sidebar.js
-import { AppStore } from '../store/AppStore.js';
+// scripts/ui/sidebar.js
+import { AppStore }    from '../store/AppStore.js';
 import { deleteClass } from './modals/new-class.js';
 import { icon, icon14 } from './icons.js';
+import { getAllMeta }  from '../services/schema-meta-service.js';
+import {
+  SORT_MODES, getSortMode, setSortMode,
+  sortSchemas, getSortBadgeValue,
+} from '../services/schema-sort-service.js';
+
+// ── Constants ──────────────────────────────────────────────────────────────
+const SORTABLE_GROUPS = new Set(['nomen', 'adjektiv']);
 
 const GROUP_LABELS = {
   genre:    `${icon14('drama')} Genre`,
@@ -9,19 +17,45 @@ const GROUP_LABELS = {
   adjektiv: `${icon14('shapes')} Adjektive`,
 };
 
-export function initSidebar(container) {
+const ICON_X = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+  fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+  stroke-linejoin="round" aria-hidden="true">
+  <path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
+
+const ICON_SORT = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+  fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+  stroke-linejoin="round" aria-hidden="true">
+  <path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>`;
+
+// ── State ──────────────────────────────────────────────────────────────────
+let _metaMap = {};  // { [schemaId]: { rowCount, modifiedAt, createdAt, lastAccessedAt } }
+
+// ── Init ───────────────────────────────────────────────────────────────────
+export async function initSidebar(container) {
+  _metaMap = await getAllMeta();
   render(container);
-  AppStore.on('schemas', () => render(container));
-  AppStore.on('activeSchema', () => render(container));
+
+  AppStore.on('schemas',      () => rerender(container));
+  AppStore.on('activeSchema', () => rerender(container));
+  // Refresh metadata badges when rows change (count updates)
+  AppStore.on('rows', () => {
+    getAllMeta().then(m => { _metaMap = m; rerender(container); });
+  });
 }
 
+function rerender(container) {
+  render(container);
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
 function render(container) {
   const schemas = AppStore.get('schemas') ?? [];
   const active  = AppStore.get('activeSchema');
 
+  // Group schemas
   const groups = {};
   schemas.forEach((s) => {
-    const g = s.group ?? 'custom';
+    const g = s.group ?? 'nomen';
     if (!groups[g]) groups[g] = [];
     groups[g].push(s);
   });
@@ -33,31 +67,52 @@ function render(container) {
       <button class="theme-toggle" id="btn-theme-toggle" title="Theme umschalten" aria-label="Theme umschalten"></button>
     </div>
     <div class="sidebar-nav">
-      ${Object.entries(groups).map(([group, items]) => `
-        <div class="sidebar-group">
-          <div class="sidebar-group-label">${GROUP_LABELS[group] ?? group}</div>
-          ${items.map((s) => `
+      ${Object.entries(groups).map(([group, items]) => {
+        const sortMode    = SORTABLE_GROUPS.has(group) ? getSortMode(group) : 'default';
+        const sorted      = SORTABLE_GROUPS.has(group)
+          ? sortSchemas(items, sortMode, _metaMap)
+          : items;
+        const sortLabel   = SORT_MODES.find(m => m.id === sortMode)?.label ?? 'Standard';
+
+        return `
+        <div class="sidebar-group" data-group="${group}">
+          <div class="sidebar-group-label">
+            <span class="sidebar-group-label-text">${GROUP_LABELS[group] ?? group}</span>
+            ${SORTABLE_GROUPS.has(group) ? `
+              <div class="sidebar-sort-wrap">
+                <button class="sidebar-sort-btn" data-group="${group}"
+                  title="Sortierung: ${sortLabel}">
+                  ${ICON_SORT}
+                  <span class="sidebar-sort-label">${shortSortLabel(sortMode)}</span>
+                </button>
+              </div>
+            ` : ''}
+          </div>
+          ${sorted.map((s) => {
+            const badge = getSortBadgeValue(s.id, sortMode, _metaMap);
+            return `
             <button
               class="sidebar-item ${active?.id === s.id ? 'active' : ''}"
               data-schema-id="${s.id}"
-              title="${s.label}"
+              title="${s.label}${badge ? ` (${badge})` : ''}"
             >
-              <span class="sidebar-item-icon">${getIcon(s.type, s.group)}</span>
+              <span class="sidebar-item-icon">${getIcon(s.type)}</span>
               <span class="sidebar-item-label">${s.label}</span>
+              ${badge ? `<span class="sidebar-item-badge">${badge}</span>` : ''}
               ${s.type !== 'genre' ? `
                 <span class="sidebar-item-delete" data-delete-id="${s.id}" title="Klasse löschen">
-                  ${icon12('x')}
+                  ${ICON_X}
                 </span>` : ''}
-            </button>
-          `).join('')}
-        </div>
-      `).join('')}
+            </button>`;
+          }).join('')}
+        </div>`;
+      }).join('')}
     </div>
     <div class="sidebar-footer">
       <button class="sidebar-new-class-btn" id="btn-new-class" title="Neue Klasse hinzufügen">
         ${icon14('list-plus')} Neue Klasse
       </button>
-      <button class="sidebar-new-class-btn sidebar-db-btn" id="btn-database" title="Datenbank verwalten (Export / Import / Reset)">
+      <button class="sidebar-new-class-btn sidebar-db-btn" id="btn-database" title="Datenbank verwalten">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
         Datenbank
       </button>
@@ -68,7 +123,8 @@ function render(container) {
     </div>
   `;
 
-  // Nav items
+  // ── Event listeners ──────────────────────────────────────────────────────
+  // Schema items
   container.querySelectorAll('.sidebar-item').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       if (e.target.closest('.sidebar-item-delete')) {
@@ -77,20 +133,27 @@ function render(container) {
         deleteClass(id);
         return;
       }
-      const id = btn.dataset.schemaId;
+      const id     = btn.dataset.schemaId;
       const schema = schemas.find((s) => s.id === id);
       if (schema) AppStore.set('activeSchema', schema);
     });
   });
 
+  // Sort buttons → open inline dropdown
+  container.querySelectorAll('.sidebar-sort-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openSortDropdown(btn, btn.dataset.group, container);
+    });
+  });
+
+  // Footer buttons
   container.querySelector('#btn-new-class')?.addEventListener('click', () => {
     document.dispatchEvent(new CustomEvent('editor:open-new-class'));
   });
-
   container.querySelector('#btn-database')?.addEventListener('click', () => {
     document.dispatchEvent(new CustomEvent('editor:open-database'));
   });
-
   container.querySelector('#btn-batch')?.addEventListener('click', () => {
     document.dispatchEvent(new CustomEvent('editor:open-batch'));
   });
@@ -107,18 +170,76 @@ function render(container) {
   }
 }
 
-function icon12(name) {
-  // local shorthand (avoids circular import confusion)
-  const { icon: ic } = { icon: (n, s) => {
-    const el = document.createElement('span');
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${({
-      x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
-    })[n] ?? ''}</svg>`;
-  }};
-  return ic(name, 12);
+// ── Sort dropdown ──────────────────────────────────────────────────────────
+let _activeDropdown = null;
+
+function openSortDropdown(anchorBtn, group, sidebarContainer) {
+  // Close existing
+  _activeDropdown?.remove();
+  _activeDropdown = null;
+
+  const current = getSortMode(group);
+  const dropdown = document.createElement('div');
+  dropdown.className = 'sidebar-sort-dropdown';
+  dropdown.innerHTML = SORT_MODES.map(m => `
+    <button class="sidebar-sort-option ${m.id === current ? 'active' : ''}"
+            data-mode="${m.id}">
+      ${m.id === current ? `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>` : '<span style="width:12px;display:inline-block"></span>'}
+      ${m.label}
+    </button>
+  `).join('');
+
+  // Position relative to the anchor button
+  const rect = anchorBtn.getBoundingClientRect();
+  dropdown.style.cssText = `
+    position: fixed;
+    top: ${rect.bottom + 4}px;
+    left: ${rect.left}px;
+    z-index: 9999;
+  `;
+
+  document.body.appendChild(dropdown);
+  _activeDropdown = dropdown;
+
+  dropdown.querySelectorAll('.sidebar-sort-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      const mode = opt.dataset.mode;
+      setSortMode(group, mode);
+      dropdown.remove();
+      _activeDropdown = null;
+      render(sidebarContainer); // re-render sidebar with new sort
+    });
+  });
+
+  // Close on outside click
+  const onOutside = (e) => {
+    if (!dropdown.contains(e.target) && e.target !== anchorBtn) {
+      dropdown.remove();
+      _activeDropdown = null;
+      document.removeEventListener('click', onOutside, true);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', onOutside, true), 0);
 }
 
-function getIcon(type, _group) {
+// ── Helpers ────────────────────────────────────────────────────────────────
+function shortSortLabel(mode) {
+  const map = {
+    'default':       'Standard',
+    'alpha-asc':     'A→Z',
+    'alpha-desc':    'Z→A',
+    'count-desc':    'Meiste',
+    'count-asc':     'Wenigste',
+    'modified-desc': 'Geändert',
+    'modified-asc':  'Älteste Änd.',
+    'created-desc':  'Erstellt',
+    'created-asc':   'Älteste',
+    'accessed-desc': 'Geöffnet',
+  };
+  return map[mode] ?? mode;
+}
+
+function getIcon(type) {
   switch (type) {
     case 'genre':    return icon14('table-properties');
     case 'nomen':    return icon14('box');

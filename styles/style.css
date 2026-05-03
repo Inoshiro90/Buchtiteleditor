@@ -1579,3 +1579,116 @@ dialog::backdrop {
   cursor: help;
   border: 1px solid rgba(42, 157, 153, 0.25);
 }
+
+/* ── Sidebar sort controls ────────────────────────────────────── */
+.sidebar-group-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-group-label-text {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sidebar-sort-wrap {
+  flex-shrink: 0;
+}
+
+.sidebar-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-micro);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-family: var(--font-sans);
+  font-weight: var(--fw-medium);
+  padding: 2px 5px;
+  cursor: pointer;
+  transition: background var(--dur-base), color var(--dur-base), border-color var(--dur-base);
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.sidebar-sort-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-primary);
+  border-color: rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .sidebar-sort-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Dropdown */
+.sidebar-sort-dropdown {
+  background: var(--bg-surface);
+  border: var(--border-medium);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-deep);
+  min-width: 200px;
+  padding: 4px 0;
+  overflow: hidden;
+}
+
+.sidebar-sort-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 12px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  font-weight: var(--fw-regular);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--dur-fast), color var(--dur-fast);
+  white-space: nowrap;
+}
+
+.sidebar-sort-option:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-primary);
+}
+
+.sidebar-sort-option.active {
+  color: var(--color-accent);
+  font-weight: var(--fw-semibold);
+}
+
+[data-theme="dark"] .sidebar-sort-option:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Badge in sidebar items showing sort-relevant value */
+.sidebar-item-badge {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  background: var(--bg-warm);
+  border-radius: var(--radius-pill);
+  padding: 1px 5px;
+  border: 1px solid var(--border-color);
+  line-height: 1.4;
+  /* Hide when delete button is shown on hover */
+}
+
+/* When hovering a sidebar item, hide badge and show delete */
+.sidebar-item:hover .sidebar-item-badge {
+  display: none;
+}
+
+.sidebar-item:hover .sidebar-item-delete {
+  display: flex;
+}
