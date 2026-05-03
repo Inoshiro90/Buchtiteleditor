@@ -1,7 +1,7 @@
 // editor/ui/table.js
 import { AppStore } from '../store/AppStore.js';
 import { db } from '../db/db.js';
-import { detectDuplicates } from '../services/duplicate-service.js';
+import { detectDuplicates, runCrossClassCheck, countCrossClassDuplicates } from '../services/duplicate-service.js';
 import { DSLCellRenderer, DSLCellEditor, setActiveDSLEditor } from './cell-dsl.js';
 import { validateDSL, buildKnownLemmas } from '../services/dsl-validator.js';
 import {
@@ -65,12 +65,18 @@ async function loadSchemaData(schema) {
   // Assign internal IDs if missing
   rows = rows.map((r) => ({ ...r, _id: r._id ?? nextId() }));
 
-  // Run duplicate detection
+  // Within-class duplicate detection
   const withDups = detectDuplicates(rows, schema.type);
-  AppStore.set('rows', withDups);
+
+  // Cross-class duplicate detection (compares against all sibling tables)
+  const allSchemas = AppStore.get('schemas') ?? [];
+  const withCross  = await runCrossClassCheck(withDups, schema, db, allSchemas);
+
+  AppStore.set('rows', withCross);
+  AppStore.set('crossClassDuplicates', withCross.filter(r => r._isCrossClassDuplicate));
 
   // Build AG Grid
-  buildGrid(container, schema, withDups);
+  buildGrid(container, schema, withCross);
 }
 
 function buildGrid(container, schema, rows) {
@@ -163,7 +169,8 @@ function buildGrid(container, schema, rows) {
       if (filterText) params.api.setGridOption('quickFilterText', filterText);
     },
     rowClassRules: {
-      'row-duplicate': (params) => params.data?._isDuplicate === true,
+      'row-duplicate':             (params) => params.data?._isDuplicate === true,
+      'row-cross-class-duplicate': (params) => params.data?._isCrossClassDuplicate === true && !params.data?._isDuplicate,
     },
     context: { schema },
   };
@@ -274,13 +281,19 @@ async function persistChange(params) {
 
   // Re-run duplicate detection
   const withDups = detectDuplicates(allRows, schema.type);
-  AppStore.set('rows', withDups);
 
-  // Update duplicate styling
-  params.api.setGridOption('rowData', withDups);
+  // Cross-class check after every cell change
+  const allSchemas = AppStore.get('schemas') ?? [];
+  const withCross  = await runCrossClassCheck(withDups, schema, db, allSchemas);
+
+  AppStore.set('rows', withCross);
+  AppStore.set('crossClassDuplicates', withCross.filter(r => r._isCrossClassDuplicate));
+
+  // Update grid rows
+  params.api.setGridOption('rowData', withCross);
 
   // Persist to IndexedDB
-  await db.set('tables', schema.id, withDups);
+  await db.set('tables', schema.id, withCross);
 }
 
 async function addRow() {

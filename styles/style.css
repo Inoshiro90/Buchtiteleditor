@@ -1560,3 +1560,22 @@ dialog::backdrop {
   padding: 0 4px;
   font-size: 10px;
 }
+
+/* ── Cross-class duplicate highlighting ──────────────────────── */
+/* Distinct from within-class (orange) — use teal/blue border */
+.row-cross-class-duplicate .ag-cell {
+  background-color: rgba(42, 157, 153, 0.06) !important;
+  border-left: 2px solid rgba(42, 157, 153, 0.5) !important;
+}
+
+/* Statusbar badge for cross-class duplicates */
+.statusbar-cross-dup-badge {
+  background: rgba(42, 157, 153, 0.10);
+  color: var(--color-teal);
+  border-radius: var(--radius-pill);
+  padding: 1px 8px;
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+  cursor: help;
+  border: 1px solid rgba(42, 157, 153, 0.25);
+}
