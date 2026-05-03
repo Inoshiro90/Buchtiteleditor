@@ -14,6 +14,7 @@
     import './ui/modals/export-warning.js';
     import './ui/modals/auto-tags-dialog.js';
     import './ui/modals/new-class.js';
+    import './ui/modals/database-modal.js';
 
     // Restore theme before first paint
     restoreTheme();

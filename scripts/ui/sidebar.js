@@ -57,6 +57,10 @@ function render(container) {
       <button class="sidebar-new-class-btn" id="btn-new-class" title="Neue Klasse hinzufügen">
         ${icon14('list-plus')} Neue Klasse
       </button>
+      <button class="sidebar-new-class-btn sidebar-db-btn" id="btn-database" title="Datenbank verwalten (Export / Import / Reset)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
+        Datenbank
+      </button>
     </div>
   `;
 
@@ -77,6 +81,10 @@ function render(container) {
 
   container.querySelector('#btn-new-class')?.addEventListener('click', () => {
     document.dispatchEvent(new CustomEvent('editor:open-new-class'));
+  });
+
+  container.querySelector('#btn-database')?.addEventListener('click', () => {
+    document.dispatchEvent(new CustomEvent('editor:open-database'));
   });
 
   // Theme toggle
