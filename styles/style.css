@@ -1692,3 +1692,13 @@ dialog::backdrop {
 .sidebar-item:hover .sidebar-item-delete {
   display: flex;
 }
+
+/* ── Defektiva ────────────────────────────────────────────────── */
+/* DSL token colour for {DEF:...} */
+:root { --c-dsl-def: #7c6fcd; }
+[data-theme="dark"] { --c-dsl-def: #a78bfa; }
+
+.dsl-def {
+  color: var(--c-dsl-def);
+  background: rgba(124, 111, 205, 0.09);
+}

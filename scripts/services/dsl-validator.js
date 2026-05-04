@@ -2,7 +2,7 @@
 // Tokenizer extracted from core/engine.js + strict per-type flag validation
 
 // ── Per-type allowed flag sets ─────────────────────────────────────────────
-const VALID_TYPES = new Set(['NOM', 'ADJ', 'ART', 'PRO', 'COM', 'NAM', 'FUN']);
+const VALID_TYPES = new Set(['NOM', 'ADJ', 'ART', 'PRO', 'COM', 'NAM', 'FUN', 'DEF']);
 
 // Shared building blocks
 const F_NUMERUS   = new Set(['sgl', 'plu']);
@@ -41,6 +41,7 @@ const TYPE_FLAGS = {
   COM: new Set([...F_NUMERUS, ...F_KASUS, ...F_META]),
   NAM: new Set([...F_GENUS, ...F_KASUS, ...F_META, ...F_NAM_VOLK, ...F_NAM_REGION]),
   FUN: new Set([...F_DICE, ...F_META]),  // die+modifier and counts validated separately
+  DEF: new Set([...F_KASUS, ...F_ARTIKEL, ...F_META, ...F_NUMERUS]), // Defektivum
 };
 
 // Variable pattern: Uppercase start, letters, ends with digit(s) — e.g. "Volk1"
@@ -118,7 +119,7 @@ export function validateDSL(template, knownLemmas = new Set()) {
 
     // Rule 2: Unknown token type
     if (!VALID_TYPES.has(typePart)) {
-      errors.push({ severity: 'error', message: `Unbekannter Token-Typ „${typePart}". Erlaubt: NOM, ADJ, ART, PRO, COM, NAM, FUN`, start: tok.start, end: tok.end });
+      errors.push({ severity: 'error', message: `Unbekannter Token-Typ „${typePart}". Erlaubt: NOM, ADJ, ART, PRO, COM, NAM, FUN, DEF`, start: tok.start, end: tok.end });
       continue;
     }
 
@@ -128,8 +129,8 @@ export function validateDSL(template, knownLemmas = new Set()) {
       continue;
     }
 
-    // Rule 4: Unknown lemma (NOM / ADJ / COM only)
-    if (typePart === 'NOM' || typePart === 'ADJ' || typePart === 'COM') {
+    // Rule 4: Unknown lemma (NOM / ADJ / COM / DEF)
+    if (typePart === 'NOM' || typePart === 'ADJ' || typePart === 'COM' || typePart === 'DEF') {
       const baseClass = lemma.replace(/[0-9]+$/, '');
       if (!isVariable(lemma) && !knownLemmas.has(baseClass) && !knownLemmas.has(lemma)) {
         errors.push({ severity: 'error', message: `Unbekanntes Lemma „${lemma}". Keine bekannte Klasse und kein gültiges Variablenmuster.`, start: tok.start, end: tok.end });

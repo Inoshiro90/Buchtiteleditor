@@ -94,7 +94,7 @@
         // Migrate: old schemas stored with group:'custom' → correct type-based group
         const migratedCustom = customSchemas.map(s => ({
           ...s,
-          group: s.type === 'adjektiv' ? 'adjektiv' : 'nomen',
+          group: s.type === 'adjektiv' ? 'adjektiv' : s.type === 'defektivum' ? 'defektiv' : 'nomen',
           custom: true,
           deletable: true,
         }));

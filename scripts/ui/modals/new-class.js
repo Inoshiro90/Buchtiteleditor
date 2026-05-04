@@ -2,7 +2,7 @@
 import { openModal, confirmModal, showToast } from './modal-base.js';
 import { AppStore } from '../../store/AppStore.js';
 import { db } from '../../db/db.js';
-import { NOMEN_COLUMNS, ADJ_COLUMNS } from '../../db/schemas.js';
+import { NOMEN_COLUMNS, ADJ_COLUMNS, DEFEKTIV_COLUMNS } from '../../db/schemas.js';
 
 // ── Create ─────────────────────────────────────────────────────────────────
 export function openNewClassDialog() {
@@ -25,6 +25,10 @@ export function openNewClassDialog() {
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text-secondary)">
           <input type="radio" name="nc-type" value="adjektiv" style="accent-color:var(--color-accent)">
           <span>Adjektiv</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text-secondary)">
+          <input type="radio" name="nc-type" value="defektivum" style="accent-color:var(--color-accent)">
+          <span>Defektivum</span>
         </label>
       </div>
     </div>
@@ -77,7 +81,7 @@ function updatePreview() {
   }
 
   // Columns
-  const cols = type === 'adjektiv' ? ADJ_COLUMNS : NOMEN_COLUMNS;
+  const cols = type === 'adjektiv' ? ADJ_COLUMNS : type === 'defektivum' ? DEFEKTIV_COLUMNS : NOMEN_COLUMNS;
   const colEl = document.getElementById('nc-columns-preview');
   if (colEl) colEl.textContent = cols.map(c => c.field).join(' · ');
 
@@ -104,10 +108,10 @@ async function createClass(close) {
     return;
   }
 
-  const dir     = type === 'adjektiv' ? '../data/adjektive/' : '../data/nomen/';
-  const columns = type === 'adjektiv' ? ADJ_COLUMNS : NOMEN_COLUMNS;
+  const dir     = type === 'adjektiv' ? '../data/adjektive/' : type === 'defektivum' ? '../data/defektiva/' : '../data/nomen/';
+  const columns = type === 'adjektiv' ? ADJ_COLUMNS : type === 'defektivum' ? DEFEKTIV_COLUMNS : NOMEN_COLUMNS;
 
-  const group = type === 'adjektiv' ? 'adjektiv' : 'nomen';
+  const group = type === 'adjektiv' ? 'adjektiv' : type === 'defektivum' ? 'defektiv' : 'nomen';
 
   const newSchema = {
     id: name, label: name,

@@ -29,6 +29,7 @@ function render(container) {
           <div class="toolbar-separator"></div>
           ${schema.type === 'genre' ? `
             <button class="toolbar-btn" id="btn-token-nom" title="NOM-Token einfügen">${icon14('plus')} NOM</button>
+            <button class="toolbar-btn" id="btn-token-def" title="DEF-Token einfügen">${icon14('plus')} DEF</button>
             <button class="toolbar-btn" id="btn-token-adj" title="ADJ-Token einfügen">${icon14('plus')} ADJ</button>
             <button class="toolbar-btn" id="btn-token-pro" title="PRO-Token einfügen">${icon14('plus')} PRO</button>
             <button class="toolbar-btn" id="btn-token-art" title="ART-Token einfügen">${icon14('plus')} ART</button>
@@ -116,7 +117,7 @@ function bindEvents(container, schema) {
     document.dispatchEvent(new CustomEvent('editor:delete-rows'));
   });
 
-  ['nom','adj','pro','art','nam','com','fun'].forEach((type) => {
+  ['nom','def','adj','pro','art','nam','com','fun'].forEach((type) => {
     container.querySelector(`#btn-token-${type}`)?.addEventListener('click', () => {
       document.dispatchEvent(new CustomEvent('editor:open-token-dialog', { detail: { type: type.toUpperCase() } }));
     });

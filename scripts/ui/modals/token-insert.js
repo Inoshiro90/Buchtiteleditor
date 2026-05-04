@@ -445,10 +445,80 @@ export function openFUNDialog() {
   });
 }
 
+
+// ── DEF Dialog ────────────────────────────────────────────────────────────
+function buildDEFToken() {
+  const lemma   = sel('def-lemma')?.value ?? '';
+  const kasus   = sel('def-kasus')?.value ?? 'nom';
+  const art     = sel('def-art')?.value ?? '-';
+  const renderArt = sel('def-render-art')?.checked;
+  if (!lemma) return `{DEF:?}`;
+  let flags = `|${kasus}`;
+  if (art !== '-') flags += `|${art}`;
+  if (renderArt) flags += `|art`;
+  return `{DEF:${lemma}${flags}}`;
+}
+
+export function openDEFDialog() {
+  const defLemmas = []; // populated from defektivum schemas
+  const schemas   = (AppStore.get('schemas') ?? [])
+    .filter(s => s.type === 'defektivum')
+    .map(s => s.lemma ?? s.id);
+  const allVars = schemas.flatMap(base => [1,2,3].map(n => `${base}${n}`));
+  const opts = [
+    `<optgroup label="Defektiva-Klassen">${schemas.map(l => `<option value="${l}">${l}</option>`).join('')}</optgroup>`,
+    `<optgroup label="Variablen">${allVars.map(l => `<option value="${l}">${l}</option>`).join('')}</optgroup>`,
+  ].join('');
+
+const bodyHTML = `
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div style="grid-column:1/-1">
+      ${row('Lemma / Variable',
+        `<select class="form-select" id="def-lemma">
+          ${opts || '<option value="">— (noch keine Defektiva-Klassen) —</option>'}
+        </select>`
+      )}
+    </div>
+
+    <div>${row('Kasus', makeSelect('def-kasus', ['nom','gen','dat','akk']))}</div>
+
+    <div>${row('Artikel',
+      makeSelect(
+        'def-art',
+        ['-','def','ind','neg'],
+        ['keiner','bestimmt','unbestimmt','negativ']
+      )
+    )}</div>
+
+    <div style="display:flex;align-items:center;gap:8px;padding-top:22px;">
+      <input type="checkbox" id="def-render-art">
+      <label for="def-render-art">Artikel rendern (|art)</label>
+    </div>
+  </div>
+
+  <div id="def-preview"></div>
+`;
+
+  openModal({
+    id: 'modal-def', title: 'DEF-Token einfügen', bodyHTML, width: '480px',
+    buttons: [
+      { label: 'Abbrechen', cls: 'btn-secondary', action: 'close' },
+      { label: 'Einfügen', cls: 'btn-primary', action: (close) => { insertTokenAtCursor(buildDEFToken()); close(); }},
+    ],
+    onOpen: () => {
+      updatePreview('def-preview', buildDEFToken);
+      ['def-lemma','def-kasus','def-art','def-render-art'].forEach(id => {
+        sel(id)?.addEventListener('change', () => updatePreview('def-preview', buildDEFToken));
+      });
+    },
+  });
+}
+
 // ── Router ─────────────────────────────────────────────────────────────────
 export function openTokenDialog(type) {
   switch (type) {
     case 'NOM': return openNOMDialog();
+    case 'DEF': return openDEFDialog();
     case 'ADJ': return openADJDialog();
     case 'PRO': return openPRODialog();
     case 'ART': return openARTDialog();

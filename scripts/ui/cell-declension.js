@@ -214,3 +214,13 @@ export class GenusCellRenderer {
   getGui()  { return this._el; }
   destroy() {}
 }
+
+// ── Numerus editor (Defektivum) ───────────────────────────────────────────
+export class NumerusCellEditor extends SelectCellEditor {
+  _getOptions() {
+    return [
+      { value: 'singular', label: 'sgl — Singulariatantum (nur Singular)' },
+      { value: 'plural', label: 'plu — Pluraliatantum (nur Plural)' },
+    ];
+  }
+}

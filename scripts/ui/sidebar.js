@@ -9,11 +9,12 @@ import {
 } from '../services/schema-sort-service.js';
 
 // ── Constants ──────────────────────────────────────────────────────────────
-const SORTABLE_GROUPS = new Set(['nomen', 'adjektiv']);
+const SORTABLE_GROUPS = new Set(['nomen', 'adjektiv', 'defektiv']);
 
 const GROUP_LABELS = {
   genre:    `${icon14('drama')} Genre`,
   nomen:    `${icon14('boxes')} Nomen`,
+  defektiv: `${icon14('hash')} Defektiva`,
   adjektiv: `${icon14('shapes')} Adjektive`,
 };
 
@@ -60,6 +61,13 @@ function render(container) {
     groups[g].push(s);
   });
 
+  // Enforce sidebar group order
+  const GROUP_ORDER = ['genre', 'nomen', 'defektiv', 'adjektiv'];
+  const orderedGroups = GROUP_ORDER
+    .filter(g => groups[g])
+    .map(g => [g, groups[g]])
+    .concat(Object.entries(groups).filter(([g]) => !GROUP_ORDER.includes(g)));
+
   container.innerHTML = `
     <div class="sidebar-header">
       <div class="sidebar-logo">${icon('square-library', 14)}</div>
@@ -67,7 +75,7 @@ function render(container) {
       <button class="theme-toggle" id="btn-theme-toggle" title="Theme umschalten" aria-label="Theme umschalten"></button>
     </div>
     <div class="sidebar-nav">
-      ${Object.entries(groups).map(([group, items]) => {
+      ${orderedGroups.map(([group, items]) => {
         const sortMode    = SORTABLE_GROUPS.has(group) ? getSortMode(group) : 'default';
         const sorted      = SORTABLE_GROUPS.has(group)
           ? sortSchemas(items, sortMode, _metaMap)
@@ -241,10 +249,11 @@ function shortSortLabel(mode) {
 
 function getIcon(type) {
   switch (type) {
-    case 'genre':    return icon14('table-properties');
-    case 'nomen':    return icon14('box');
-    case 'adjektiv': return icon14('triangle');
-    default:         return icon14('box');
+    case 'genre':      return icon14('table-properties');
+    case 'nomen':      return icon14('box');
+    case 'adjektiv':   return icon14('triangle');
+    case 'defektivum': return icon14('asterisk');
+    default:           return icon14('box');
   }
 }
 

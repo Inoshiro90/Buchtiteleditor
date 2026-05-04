@@ -2,7 +2,7 @@
 // Auto-Tag algorithm preserving manually-entered tags
 
 // DSL tag expression pattern — e.g. {NOM:Volk1|tags}, {ADJ:Farbe1|tags}
-const DSL_TAG_EXPR = /^\{(?:NOM|ADJ|COM):[^}]+\|tags\}$/;
+const DSL_TAG_EXPR = /^\{(?:NOM|ADJ|COM|DEF):[^}]+\|tags\}$/;
 
 /**
  * Parse a comma-separated tags string into an array of trimmed, non-empty strings.
@@ -20,6 +20,7 @@ function parseTags(str) {
  *   3. {NOM:Lemma|tags} generated from title tokens
  *   4. {ADJ:Lemma|tags} generated from title tokens
  *   5. {COM:Lemma|tags} generated from title tokens
+ *   6. {DEF:Lemma|tags} generated from title tokens
  *
  * Duplicates removed. Returns null if the result is unchanged.
  *
@@ -46,6 +47,9 @@ export function computeAutoTags(row) {
   // 5. COM tokens → {COM:Lemma|tags}
   const comTags = extractTokenTags(title, 'COM');
 
+  // 6. DEF tokens → {DEF:Lemma|tags}
+  const defTags = extractTokenTags(title, 'DEF');
+
   // Assemble in order, deduplicate
   const ordered = [];
   const seen = new Set();
@@ -61,6 +65,7 @@ export function computeAutoTags(row) {
   nomTags.forEach(add);
   adjTags.forEach(add);
   comTags.forEach(add);
+  defTags.forEach(add);
 
   const newTags = ordered.join(', ');
   const current = existing.join(', ');

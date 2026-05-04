@@ -9,7 +9,8 @@ function n(v) {
 const WITHIN_KEY = {
   nomen:    ['singular', 'plural', 'adjective', 'prefix', 'suffix'],
   adjektiv: ['positive', 'comparative', 'superlative', 'prefix', 'suffix'],
-  genre:    ['title'],
+  genre:      ['title'],
+  defektivum: ['noun', 'adjective', 'prefix', 'suffix', 'number'],
 };
 
 // ── Cross-class key fields ─────────────────────────────────────────────────
@@ -31,7 +32,8 @@ const WITHIN_KEY = {
 // Genre: cross-class check not applicable (only one genre table exists).
 const CROSS_KEY = {
   nomen:    ['singular', 'adjective', 'prefix', 'suffix'],
-  adjektiv: ['positive'],
+  adjektiv:   ['positive'],
+  defektivum: ['noun', 'number'],  // cross-class key: same word in same number = duplicate
 };
 
 function compositeKey(row, fields) {

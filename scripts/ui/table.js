@@ -6,7 +6,7 @@ import { touchModified, touchAccessed, setRowCount } from '../services/schema-me
 import { DSLCellRenderer, DSLCellEditor, setActiveDSLEditor } from './cell-dsl.js';
 import { validateDSL, buildKnownLemmas } from '../services/dsl-validator.js';
 import {
-  GenusCellEditor, GenusCellRenderer,
+  GenusCellEditor, GenusCellRenderer, NumerusCellEditor,
   DeclinationRuleCellEditor,
   DeclinationPatternCellEditor, PatternCellRenderer,
 } from './cell-declension.js';
@@ -115,7 +115,7 @@ function buildGrid(container, schema, rows) {
     getRowId: (params) => params.data._id,
     onCellValueChanged: async (params) => {
       // Cascade: gender change → clear incompatible rule + pattern
-      if (params.colDef.field === 'gender' && _currentSchema?.type === 'nomen') {
+      if (params.colDef.field === 'gender' && (_currentSchema?.type === 'nomen' || _currentSchema?.type === 'defektivum')) {
         const genus = params.newValue ?? '';
         const rule  = params.data?.declinationRule ?? '';
         const pat   = params.data?.declinationPattern ?? '';
@@ -136,7 +136,7 @@ function buildGrid(container, schema, rows) {
       }
 
       // Cascade: rule change → clear incompatible pattern
-      if (params.colDef.field === 'declinationRule' && _currentSchema?.type === 'nomen') {
+      if (params.colDef.field === 'declinationRule' && (_currentSchema?.type === 'nomen' || _currentSchema?.type === 'defektivum')) {
         const genus = params.data?.gender ?? '';
         const rule  = params.newValue ?? '';
         const pat   = params.data?.declinationPattern ?? '';
@@ -230,6 +230,27 @@ function buildColDefs(schema) {
     // DSL columns (genre templates)
     if (col.dsl) {
       return { ...base, cellClass: 'cell-dsl', cellRenderer: DSLCellRenderer, cellEditor: DSLCellEditor };
+    }
+
+    // Defektivum: numerus selector + shared declension columns
+    if (schema.type === 'defektivum') {
+      if (col.field === 'gender') {
+        return { ...base, cellEditor: GenusCellEditor, cellRenderer: GenusCellRenderer };
+      }
+      if (col.field === 'numerus') {
+        return { ...base, cellEditor: NumerusCellEditor };
+      }
+      if (col.field === 'declinationRule') {
+        return { ...base, cellEditor: DeclinationRuleCellEditor };
+      }
+      if (col.field === 'declinationPattern') {
+        return {
+          ...base,
+          cellEditor: DeclinationPatternCellEditor,
+          cellRenderer: PatternCellRenderer,
+          valueFormatter: () => undefined,
+        };
+      }
     }
 
     // Nomen: cascading declension columns

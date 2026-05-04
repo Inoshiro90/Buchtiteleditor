@@ -6,20 +6,22 @@ import { AppStore }                      from '../store/AppStore.js';
 import { parseFile }                     from './import-service.js';
 import { rowsToCsv }                     from './csv-service.js';
 import { detectDuplicates }              from './duplicate-service.js';
-import { NOMEN_COLUMNS, ADJ_COLUMNS, GENRE_COLUMNS } from '../db/schemas.js';
+import { NOMEN_COLUMNS, ADJ_COLUMNS, GENRE_COLUMNS, DEFEKTIV_COLUMNS } from '../db/schemas.js';
 
 // ── Erwartete Spalten je Typ ───────────────────────────────────────────────
 const EXPECTED_FIELDS = {
   nomen:    NOMEN_COLUMNS.map(c => c.field),
   adjektiv: ADJ_COLUMNS.map(c => c.field),
-  genre:    GENRE_COLUMNS.map(c => c.field),
+  genre:       GENRE_COLUMNS.map(c => c.field),
+  defektivum:  DEFEKTIV_COLUMNS.map(c => c.field),
 };
 
 // Mindestfelder, die unbedingt vorhanden sein müssen (Pflichtfelder)
 const REQUIRED_FIELDS = {
   nomen:    ['singular', 'plural', 'gender'],
   adjektiv: ['positive', 'comparative', 'superlative'],
-  genre:    ['title', 'genre'],
+  genre:      ['title', 'genre'],
+  defektivum: ['noun', 'number', 'gender'],
 };
 
 // ── Export ─────────────────────────────────────────────────────────────────
@@ -40,16 +42,18 @@ export async function exportAllAsZip() {
 
   // Ordner anlegen
   const folderMap = {
-    genre:    zip.folder('genre'),
-    nomen:    zip.folder('nomen'),
-    adjektiv: zip.folder('adjektive'),
+    genre:     zip.folder('genre'),
+    nomen:     zip.folder('nomen'),
+    adjektiv:  zip.folder('adjektive'),
+    defektiv:  zip.folder('defektiva'),
+    defektivum:zip.folder('defektiva'),  // type alias
   };
 
   for (const schema of schemas) {
     const rows   = (await db.get('tables', schema.id)) ?? [];
     const fields = schema.columns.map(c => c.field);
     const csv    = rowsToCsv(fields, rows);
-    const folder = folderMap[schema.type];
+    const folder = folderMap[schema.type] ?? folderMap[schema.group];
     if (!folder) continue;  // unbekannter Typ → überspringen
     folder.file(schema.csvFile ?? `${schema.id}.csv`, csv);
   }
@@ -150,6 +154,7 @@ export async function batchImportFiles(files, mode = 'append') {
       const requiredNomen    = REQUIRED_FIELDS.nomen.join(', ');
       const requiredAdjektiv = REQUIRED_FIELDS.adjektiv.join(', ');
       const requiredGenre    = REQUIRED_FIELDS.genre.join(', ');
+      const requiredDefektiv = REQUIRED_FIELDS.defektivum.join(', ');
       errors.push({
         file: file.name,
         error: 'Typ konnte nicht erkannt werden. Pflichtfelder fehlen.',
@@ -157,6 +162,7 @@ export async function batchImportFiles(files, mode = 'append') {
           `Nomen: [${requiredNomen}]`,
           `Adjektiv: [${requiredAdjektiv}]`,
           `Genre: [${requiredGenre}]`,
+          `Defektivum: [${requiredDefektiv}]`,
         ],
         found: fields,
         missing,
@@ -188,7 +194,7 @@ export async function batchImportFiles(files, mode = 'append') {
 
     // Vorhandene Daten mergen / ersetzen
     const existing     = (await db.get('tables', targetSchema.id)) ?? [];
-    const mergeKey     = type === 'genre' ? 'title' : type === 'adjektiv' ? 'positive' : 'singular';
+    const mergeKey     = type === 'genre' ? 'title' : type === 'adjektiv' ? 'positive' : type === 'defektivum' ? 'noun' : 'singular';
     const merged       = _mergeByMode(existing, normalizedRows, mode, mergeKey);
     const withDups     = detectDuplicates(merged, type);
 
@@ -215,9 +221,9 @@ export async function batchImportFiles(files, mode = 'append') {
 // ── Interne Hilfsfunktionen ────────────────────────────────────────────────
 async function _createSchemaFromFile(filename, type, existingSchemas) {
   const { NOMEN_COLUMNS, ADJ_COLUMNS, GENRE_COLUMNS } = await import('../db/schemas.js');
-  const columns = type === 'adjektiv' ? ADJ_COLUMNS : type === 'genre' ? GENRE_COLUMNS : NOMEN_COLUMNS;
+  const columns = type === 'adjektiv' ? ADJ_COLUMNS : type === 'genre' ? GENRE_COLUMNS : type === 'defektivum' ? DEFEKTIV_COLUMNS : NOMEN_COLUMNS;
   const id      = filename.replace(/\.[^.]+$/, '');  // ohne Endung
-  const group   = type === 'adjektiv' ? 'adjektiv' : type === 'genre' ? 'genre' : 'nomen';
+  const group   = type === 'adjektiv' ? 'adjektiv' : type === 'genre' ? 'genre' : type === 'defektivum' ? 'defektiv' : 'nomen';
 
   const newSchema = {
     id, label: id,
