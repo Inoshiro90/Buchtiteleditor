@@ -1769,3 +1769,171 @@ dialog::backdrop {
   outline-offset: -2px;
   border-radius: var(--radius-micro);
 }
+
+/* ── Sidebar redesign (P1 + P2) ──────────────────────────────── */
+
+/* Row wrapper replaces the old single button */
+.sidebar-item-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 4px 0 0;
+  border-radius: var(--radius-micro);
+  transition: background var(--dur-base);
+  position: relative;
+}
+
+.sidebar-item-row:hover,
+.sidebar-item-row.active {
+  background: rgba(0, 117, 222, 0.06);
+}
+
+.sidebar-item-row.active {
+  background: rgba(0, 117, 222, 0.10);
+}
+
+.sidebar-item-row.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 3px;
+  bottom: 3px;
+  width: 3px;
+  background: var(--color-accent);
+  border-radius: 0 2px 2px 0;
+}
+
+/* P2: drag handle — always visible, muted until hover */
+.sidebar-drag-handle {
+  flex-shrink: 0;
+  width: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  color: var(--text-muted);
+  opacity: 0.3;
+  padding: 6px 0;
+  touch-action: none;
+  transition: opacity var(--dur-fast);
+}
+
+.sidebar-item-row:hover .sidebar-drag-handle { opacity: 0.7; }
+.sidebar-item-row.dragging .sidebar-drag-handle { cursor: grabbing; }
+.sidebar-item-row.dragging { opacity: 0.45; }
+
+.sidebar-item-row.drag-over {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+/* Nav button takes available space */
+.sidebar-item-nav {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: var(--text-caption);
+  font-family: var(--font-sans);
+  font-weight: var(--fw-medium);
+  text-align: left;
+  overflow: hidden;
+}
+
+.sidebar-item-row.active .sidebar-item-nav { color: var(--color-accent); font-weight: var(--fw-semibold); }
+
+.sidebar-item-nav .sidebar-item-icon { flex-shrink: 0; font-size: 13px; }
+.sidebar-item-nav .sidebar-item-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* P1: action buttons — always visible, separate column, no overlap */
+.sidebar-item-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.sidebar-action-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: var(--radius-micro);
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: background var(--dur-fast), color var(--dur-fast);
+  /* Ensure minimum touch target for mobile
+  min-width: 44px;
+  min-height: 44px; */
+  padding: 0;
+}
+
+.sidebar-rename-btn:hover,
+.sidebar-rename-btn:active {
+  background: rgba(0, 117, 222, 0.1);
+  color: var(--color-accent);
+}
+
+.sidebar-delete-btn:hover,
+.sidebar-delete-btn:active {
+  background: rgba(231, 76, 60, 0.1);
+  color: var(--color-danger);
+}
+
+/* On small screens: always full-size touch targets */
+@media (max-width: 600px) {
+  .sidebar-action-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .sidebar-item-actions {
+    gap: 4px;
+  }
+}
+
+/* Badge */
+.sidebar-item-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  background: var(--bg-warm);
+  border-radius: var(--radius-pill);
+  padding: 1px 5px;
+  border: 1px solid var(--border-color);
+  line-height: 1.4;
+}
+
+/* Rename input (inline) */
+.sidebar-rename-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  border-radius: 3px;
+  outline: none;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 12px;
+  font-family: var(--font-sans);
+  font-weight: var(--fw-semibold);
+  padding: 2px 6px;
+  height: 22px;
+}
+
+/* Remove old hover-only rules that no longer apply */
+.sidebar-item-delete { display: none; } /* kept for compat, replaced by .sidebar-delete-btn */
+.sidebar-item-rename { display: none; } /* kept for compat, replaced by .sidebar-rename-btn */

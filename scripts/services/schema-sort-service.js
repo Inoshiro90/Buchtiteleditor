@@ -2,7 +2,6 @@
 // Sort comparators + manual drag-and-drop order for Nomen/Adjektiv/Defektiv class lists.
 
 export const SORT_MODES = [
-  { id: 'manual',        label: 'Manuell (Drag & Drop)' },
   { id: 'default',       label: 'Standard (Originalreihenfolge)' },
   { id: 'alpha-asc',     label: 'A → Z' },
   { id: 'alpha-desc',    label: 'Z → A' },

@@ -312,10 +312,18 @@ async function handleTSVPaste(api) {
   if (!schema) return;
 
   // Parse TSV
-  const pastedRows = text
-    .split(/\r?\n/)
-    .filter(line => line.length > 0)
-    .map(line => line.split('\t'));
+  // Normalize line endings (mobile uses \r\n, \r, or \n)
+  const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const lines = normalized.split('\n').filter(l => l.trim().length > 0);
+
+  // Detect delimiter: tab-separated or comma/semicolon fallback
+  const firstLine = lines[0] ?? '';
+  const hasTabs   = firstLine.includes('\t');
+  const splitLine = hasTabs
+    ? l => l.split('\t')
+    : l => l.split(/[;,]/);       // CSV fallback
+
+  const pastedRows = lines.map(l => splitLine(l));
 
   if (!pastedRows.length) return;
 

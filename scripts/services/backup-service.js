@@ -206,21 +206,26 @@ export async function importDatabaseFromJSON(file) {
 
 // ── Reset ──────────────────────────────────────────────────────────────────
 export async function resetDatabase() {
-  const schemas = AppStore.get('schemas') ?? [];
-  for (const schema of schemas) {
-    await db.set('tables', schema.id, []);
+  // Wipe ALL tables stored in IndexedDB
+  const allKeys = await db.keys('tables');
+  for (const key of allKeys) {
+    await db.delete('tables', key);
   }
 
+  // Wipe all meta and schema data
   await db.delete('schemas', 'custom');
   await db.delete('meta', 'customVariables');
   await db.delete('meta', 'initialized');
   await db.delete('meta', 'schemaMeta');
   await db.delete('meta', 'schemaOrder');
 
-  AppStore.set('schemas', DEFAULT_SCHEMAS);
+  // Reset to EMPTY — no classes, only the 4 category groups remain visible
+  // (categories are rendered from group labels; no schema = empty sidebar section)
+  AppStore.set('schemas', []);
   AppStore.set('rows', []);
   AppStore.set('errors', []);
-  AppStore.set('activeSchema', DEFAULT_SCHEMAS[0] ?? null);
+  AppStore.set('crossClassDuplicates', []);
+  AppStore.set('activeSchema', null);
 
   document.dispatchEvent(new CustomEvent('editor:rows-changed', { detail: { rows: [] } }));
 }

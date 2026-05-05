@@ -1,12 +1,18 @@
 // scripts/ui/sidebar.js
+//
+// Fixes applied:
+//  P1 — Edit + Delete always visible; touch events decoupled from click
+//  P2 — Drag always enabled regardless of sort mode
+//  P3 — scrollTop saved/restored across re-renders
+
 import { AppStore }    from '../store/AppStore.js';
 import { db }          from '../db/db.js';
 import { deleteClass } from './modals/new-class.js';
 import { icon, icon14 } from './icons.js';
-import { getAllMeta, touchModified, setRowCount } from '../services/schema-meta-service.js';
+import { getAllMeta, setRowCount } from '../services/schema-meta-service.js';
 import {
   SORT_MODES, getSortMode, setSortMode,
-  sortSchemas, applyManualOrder, getManualOrder, setManualOrder,
+  sortSchemas, applyManualOrder, setManualOrder,
   getSortBadgeValue,
 } from '../services/schema-sort-service.js';
 
@@ -21,23 +27,20 @@ const GROUP_LABELS = {
   adjektiv: `${icon14('shapes')} Adjektive`,
 };
 
-const ICON_X = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
-const ICON_SORT = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>`;
-const ICON_EDIT = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>`;
-const ICON_CHECK = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>`;
+const ICON_X     = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
+const ICON_EDIT  = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>`;
+const ICON_SORT  = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>`;
+const ICON_DRAG  = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9"  cy="5"  r="1" fill="currentColor"/><circle cx="9"  cy="12" r="1" fill="currentColor"/><circle cx="9"  cy="19" r="1" fill="currentColor"/><circle cx="15" cy="5"  r="1" fill="currentColor"/><circle cx="15" cy="12" r="1" fill="currentColor"/><circle cx="15" cy="19" r="1" fill="currentColor"/></svg>`;
 
 // ── State ──────────────────────────────────────────────────────────────────
-let _metaMap = {};
-let _container = null;
+let _metaMap        = {};
 let _activeDropdown = null;
-let _dragState = null; // { group, dragId, items }
 
 // ── Init ───────────────────────────────────────────────────────────────────
 export async function initSidebar(container) {
-  _container = container;
-
-  // Pre-load row counts for ALL schemas from DB — fixes sort before first open
   _metaMap = await getAllMeta();
+
+  // Pre-load row counts from DB for all schemas
   const schemas = AppStore.get('schemas') ?? [];
   for (const schema of schemas) {
     if (_metaMap[schema.id]?.rowCount == null) {
@@ -54,17 +57,18 @@ export async function initSidebar(container) {
 
   AppStore.on('schemas',      () => { getAllMeta().then(m => { _metaMap = m; render(container); }); });
   AppStore.on('activeSchema', () => render(container));
-  AppStore.on('rows',         () => {
-    getAllMeta().then(m => { _metaMap = m; render(container); });
-  });
+  AppStore.on('rows',         () => { getAllMeta().then(m => { _metaMap = m; render(container); }); });
 }
 
 // ── Render ─────────────────────────────────────────────────────────────────
+// P3: save/restore scrollTop to prevent visual jump on re-render
 function render(container) {
+  const nav = container.querySelector('.sidebar-nav');
+  const savedScroll = nav ? nav.scrollTop : 0;
+
   const schemas = AppStore.get('schemas') ?? [];
   const active  = AppStore.get('activeSchema');
 
-  // Group schemas
   const groups = {};
   schemas.forEach(s => {
     const g = s.group ?? 'nomen';
@@ -72,7 +76,6 @@ function render(container) {
     groups[g].push(s);
   });
 
-  // Enforce group order
   const orderedGroups = GROUP_ORDER
     .filter(g => groups[g])
     .map(g => [g, groups[g]])
@@ -82,58 +85,65 @@ function render(container) {
     <div class="sidebar-header">
       <div class="sidebar-logo">${icon('square-library', 14)}</div>
       <span class="sidebar-title">Buchtiteleditor</span>
-      <button class="theme-toggle" id="btn-theme-toggle" title="Theme umschalten" aria-label="Theme umschalten"></button>
+      <button class="theme-toggle" id="btn-theme-toggle" aria-label="Theme umschalten"></button>
     </div>
     <div class="sidebar-nav">
       ${orderedGroups.map(([group, items]) => {
         const sortMode = SORTABLE_GROUPS.has(group) ? getSortMode(group) : 'default';
-        const sorted   = SORTABLE_GROUPS.has(group)
-          ? (sortMode === 'manual' ? applyManualOrder(items, group) : sortSchemas(items, sortMode, _metaMap))
-          : items;
-        const isDraggable = SORTABLE_GROUPS.has(group) && sortMode === 'manual';
+        // P2: drag always enabled — apply manual order always, sort on top of it
+        const baseOrder = SORTABLE_GROUPS.has(group) ? applyManualOrder(items, group) : items;
+        const sorted    = sortMode === 'default' ? baseOrder : sortSchemas(baseOrder, sortMode, _metaMap);
 
         return `
         <div class="sidebar-group" data-group="${group}">
           <div class="sidebar-group-label">
             <span class="sidebar-group-label-text">${GROUP_LABELS[group] ?? group}</span>
             ${SORTABLE_GROUPS.has(group) ? `
-              <div class="sidebar-sort-wrap">
-                <button class="sidebar-sort-btn" data-group="${group}"
-                  title="Sortierung: ${SORT_MODES.find(m => m.id === sortMode)?.label ?? sortMode}">
-                  ${ICON_SORT}
-                  <span class="sidebar-sort-label">${shortSortLabel(sortMode)}</span>
-                </button>
-              </div>
+              <button class="sidebar-sort-btn" data-group="${group}"
+                title="Sortierung: ${SORT_MODES.find(m => m.id === sortMode)?.label ?? sortMode}">
+                ${ICON_SORT}
+                <span class="sidebar-sort-label">${shortSortLabel(sortMode)}</span>
+              </button>
             ` : ''}
           </div>
-          <div class="sidebar-items-list" data-group="${group}" data-draggable="${isDraggable}">
+          <!-- P2: all items always draggable -->
+          <div class="sidebar-items-list" data-group="${group}">
             ${sorted.map(s => {
               const badge = getSortBadgeValue(s.id, sortMode, _metaMap);
+              const isActive = active?.id === s.id;
               return `
-              <button
-                class="sidebar-item ${active?.id === s.id ? 'active' : ''}"
-                data-schema-id="${s.id}"
-                draggable="${isDraggable}"
-                title="${s.label}${badge ? ` (${badge})` : ''}"
-              >
-                <span class="sidebar-drag-handle ${isDraggable ? '' : 'hidden'}" aria-hidden="true">⠿</span>
-                <span class="sidebar-item-icon">${getIcon(s.type)}</span>
-                <span class="sidebar-item-label" data-label-id="${s.id}">${s.label}</span>
-                ${badge ? `<span class="sidebar-item-badge">${badge}</span>` : ''}
+              <div class="sidebar-item-row ${isActive ? 'active' : ''}" data-schema-id="${s.id}">
+                <!-- P2: drag handle always visible -->
+                <span class="sidebar-drag-handle" data-drag="${s.id}" title="Verschieben" aria-label="Verschieben">
+                  ${ICON_DRAG}
+                </span>
+                <!-- P1: main button for navigation only -->
+                <button class="sidebar-item-nav" data-nav-id="${s.id}" title="${s.label}">
+                  <span class="sidebar-item-icon">${getIcon(s.type)}</span>
+                  <span class="sidebar-item-label" data-label-id="${s.id}">${s.label}</span>
+                  ${badge ? `<span class="sidebar-item-badge">${badge}</span>` : ''}
+                </button>
+                <!-- P1: Edit + Delete always visible, outside nav button, no overlap -->
                 ${s.type !== 'genre' ? `
-                  <span class="sidebar-item-rename" data-rename-id="${s.id}" title="Umbenennen">${ICON_EDIT}</span>
-                  <span class="sidebar-item-delete" data-delete-id="${s.id}" title="Klasse löschen">${ICON_X}</span>
+                  <span class="sidebar-item-actions">
+                    <button class="sidebar-action-btn sidebar-rename-btn"
+                      data-rename-id="${s.id}" title="Umbenennen" aria-label="Umbenennen">
+                      ${ICON_EDIT}
+                    </button>
+                    <button class="sidebar-action-btn sidebar-delete-btn"
+                      data-delete-id="${s.id}" title="Löschen" aria-label="Löschen">
+                      ${ICON_X}
+                    </button>
+                  </span>
                 ` : ''}
-              </button>`;
+              </div>`;
             }).join('')}
           </div>
         </div>`;
       }).join('')}
     </div>
     <div class="sidebar-footer">
-      <button class="sidebar-new-class-btn" id="btn-new-class">
-        ${icon14('list-plus')} Neue Klasse
-      </button>
+      <button class="sidebar-new-class-btn" id="btn-new-class">${icon14('list-plus')} Neue Klasse</button>
       <button class="sidebar-new-class-btn sidebar-db-btn" id="btn-database">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
         Datenbank
@@ -145,33 +155,79 @@ function render(container) {
     </div>
   `;
 
+  // P3: restore scroll position after DOM replacement
+  const newNav = container.querySelector('.sidebar-nav');
+  if (newNav && savedScroll > 0) newNav.scrollTop = savedScroll;
+
   bindEvents(container, schemas);
 }
 
 // ── Event Binding ──────────────────────────────────────────────────────────
+// P1: Each button is its own element — no overlap, no propagation ambiguity
 function bindEvents(container, schemas) {
-  // Schema item clicks
-  container.querySelectorAll('.sidebar-item').forEach(btn => {
+
+  // Navigation (select schema)
+  container.querySelectorAll('.sidebar-item-nav').forEach(btn => {
+    // Use a single unified handler — touchend for mobile, click for desktop
+    // P1: prevents double-trigger by tracking touch state
+    let _touchHandled = false;
+
+    btn.addEventListener('touchend', e => {
+      _touchHandled = true;
+      e.preventDefault();         // suppress following click
+      e.stopPropagation();
+      const id = btn.dataset.navId;
+      const schema = schemas.find(s => s.id === id);
+      if (schema) AppStore.set('activeSchema', schema);
+    }, { passive: false });
+
     btn.addEventListener('click', e => {
-      if (e.target.closest('.sidebar-item-delete')) {
-        e.stopPropagation();
-        deleteClass(e.target.closest('.sidebar-item-delete').dataset.deleteId);
-        return;
-      }
-      if (e.target.closest('.sidebar-item-rename')) {
-        e.stopPropagation();
-        startRename(e.target.closest('.sidebar-item-rename').dataset.renameId, container);
-        return;
-      }
-      const id = btn.dataset.schemaId;
+      if (_touchHandled) { _touchHandled = false; return; }
+      const id = btn.dataset.navId;
       const schema = schemas.find(s => s.id === id);
       if (schema) AppStore.set('activeSchema', schema);
     });
 
-    // Double-click label → rename
+    // Double-click label to rename (desktop)
     btn.querySelector('.sidebar-item-label')?.addEventListener('dblclick', e => {
       e.stopPropagation();
-      startRename(btn.dataset.schemaId, container);
+      startRename(btn.dataset.navId, container, schemas);
+    });
+  });
+
+  // Rename buttons — P1: fully isolated, dedicated element
+  container.querySelectorAll('.sidebar-rename-btn').forEach(btn => {
+    let _touchHandled = false;
+
+    btn.addEventListener('touchend', e => {
+      _touchHandled = true;
+      e.preventDefault();
+      e.stopPropagation();
+      startRename(btn.dataset.renameId, container, schemas);
+    }, { passive: false });
+
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      if (_touchHandled) { _touchHandled = false; return; }
+      startRename(btn.dataset.renameId, container, schemas);
+    });
+  });
+
+  // Delete buttons — P1: fully isolated, dedicated element
+  container.querySelectorAll('.sidebar-delete-btn').forEach(btn => {
+    let _touchHandled = false;
+
+    btn.addEventListener('touchend', e => {
+      _touchHandled = true;
+      e.preventDefault();
+      e.stopPropagation();
+      deleteClass(btn.dataset.deleteId);
+    }, { passive: false });
+
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      if (_touchHandled) { _touchHandled = false; return; }
+      deleteClass(btn.dataset.deleteId);
     });
   });
 
@@ -183,9 +239,9 @@ function bindEvents(container, schemas) {
     });
   });
 
-  // Drag-and-drop on manual-sort lists
-  container.querySelectorAll('.sidebar-items-list[data-draggable="true"]').forEach(list => {
-    bindDragDrop(list, list.dataset.group);
+  // P2: Drag & drop — always active, per group list
+  container.querySelectorAll('.sidebar-items-list').forEach(list => {
+    bindDragDrop(list, list.dataset.group, container);
   });
 
   // Footer
@@ -196,94 +252,63 @@ function bindEvents(container, schemas) {
   container.querySelector('#btn-batch')?.addEventListener('click', () =>
     document.dispatchEvent(new CustomEvent('editor:open-batch')));
 
-  // Theme toggle
   const toggleBtn = container.querySelector('#btn-theme-toggle');
   if (toggleBtn) {
     updateThemeIcon(toggleBtn);
     toggleBtn.addEventListener('click', () => {
-      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-      setTheme(isDark ? 'light' : 'dark');
+      setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
       updateThemeIcon(toggleBtn);
     });
   }
 }
 
 // ── Rename ─────────────────────────────────────────────────────────────────
-function startRename(schemaId, container) {
-  const schemas = AppStore.get('schemas') ?? [];
-  const schema  = schemas.find(s => s.id === schemaId);
+function startRename(schemaId, container, schemas) {
+  const schema = schemas.find(s => s.id === schemaId);
   if (!schema) return;
 
   const labelEl = container.querySelector(`[data-label-id="${schemaId}"]`);
   if (!labelEl) return;
 
   const currentLabel = schema.label;
-  const parentBtn    = labelEl.closest('.sidebar-item');
 
-  // Replace label span with an input
   const input = document.createElement('input');
   input.type      = 'text';
   input.value     = currentLabel;
   input.className = 'sidebar-rename-input';
-  input.style.cssText = [
-    'flex:1', 'min-width:0', 'border:none', 'outline:none',
-    'background:var(--color-accent)', 'color:#fff', 'border-radius:3px',
-    'padding:0 4px', 'font-size:12px', 'font-family:var(--font-sans)',
-    'font-weight:600', 'height:20px',
-  ].join(';');
-
   labelEl.replaceWith(input);
-  parentBtn?.classList.add('renaming');
   input.focus();
   input.select();
 
   const commit = async () => {
-    const newLabel = input.value.trim();
-    input.removeEventListener('blur', commit);
-    input.removeEventListener('keydown', onKey);
+    cleanup();
+    const newLabel = input.value.trim() || currentLabel;
+    restoreLabel(newLabel);
+    if (newLabel === currentLabel) return;
 
-    // Restore label span (with new or old value)
-    const span = document.createElement('span');
-    span.className = 'sidebar-item-label';
-    span.dataset.labelId = schemaId;
-    span.textContent = newLabel || currentLabel;
-    input.replaceWith(span);
-    parentBtn?.classList.remove('renaming');
-
-    if (!newLabel || newLabel === currentLabel) return;
-
-    // Update schema label in AppStore and DB
-    const updated = schemas.map(s =>
-      s.id === schemaId ? { ...s, label: newLabel } : s
-    );
+    const updated = schemas.map(s => s.id === schemaId ? { ...s, label: newLabel } : s);
     AppStore.set('schemas', updated);
-
-    // Persist: update custom schemas in DB
-    const custom = updated.filter(s => s.custom === true);
-    await db.set('schemas', 'custom', custom);
-
-    // Update toolbar if this is the active schema
+    await db.set('schemas', 'custom', updated.filter(s => s.custom === true));
     const active = AppStore.get('activeSchema');
-    if (active?.id === schemaId) {
-      AppStore.set('activeSchema', { ...active, label: newLabel });
-    }
-
-    // Re-render sidebar with updated label
-    render(container);
+    if (active?.id === schemaId) AppStore.set('activeSchema', { ...active, label: newLabel });
   };
 
-  const cancel = () => {
+  const cancel = () => { cleanup(); restoreLabel(currentLabel); };
+
+  function restoreLabel(text) {
+    const span = document.createElement('span');
+    span.className        = 'sidebar-item-label';
+    span.dataset.labelId  = schemaId;
+    span.textContent      = text;
+    input.replaceWith(span);
+  }
+
+  function cleanup() {
     input.removeEventListener('blur', commit);
     input.removeEventListener('keydown', onKey);
-    const span = document.createElement('span');
-    span.className = 'sidebar-item-label';
-    span.dataset.labelId = schemaId;
-    span.textContent = currentLabel;
-    input.replaceWith(span);
-    parentBtn?.classList.remove('renaming');
-  };
+  }
 
-  const onKey = (e) => {
+  const onKey = e => {
     if (e.key === 'Enter')  { e.preventDefault(); commit(); }
     if (e.key === 'Escape') { e.preventDefault(); cancel(); }
   };
@@ -293,50 +318,65 @@ function startRename(schemaId, container) {
 }
 
 // ── Drag & Drop ────────────────────────────────────────────────────────────
-function bindDragDrop(list, group) {
-  let dragEl = null;
+// P2: always-on drag for all sortable groups
+function bindDragDrop(list, group, sidebarContainer) {
+  if (!SORTABLE_GROUPS.has(group)) return;
 
-  list.querySelectorAll('.sidebar-item').forEach(item => {
-    item.addEventListener('dragstart', e => {
-      dragEl = item;
-      item.classList.add('dragging');
+  let dragRow = null;
+
+  // Use drag handles as the drag source (touch-drag via pointer events)
+  list.querySelectorAll('.sidebar-drag-handle').forEach(handle => {
+    const row = handle.closest('.sidebar-item-row');
+    if (!row) return;
+    row.setAttribute('draggable', 'true');
+
+    row.addEventListener('dragstart', e => {
+      dragRow = row;
+      row.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
     });
 
-    item.addEventListener('dragend', () => {
-      dragEl = null;
-      item.classList.remove('dragging');
-      list.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('drag-over'));
-
-      // Save new order
-      const newOrder = [...list.querySelectorAll('.sidebar-item')]
-        .map(el => el.dataset.schemaId)
-        .filter(Boolean);
-      setManualOrder(group, newOrder);
-    });
-
-    item.addEventListener('dragover', e => {
-      e.preventDefault();
-      if (!dragEl || dragEl === item) return;
-      e.dataTransfer.dropEffect = 'move';
-
-      // Insert dragEl before or after this item based on pointer position
-      const rect = item.getBoundingClientRect();
-      const mid  = rect.top + rect.height / 2;
-      list.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('drag-over'));
-      item.classList.add('drag-over');
-
-      if (e.clientY < mid) {
-        list.insertBefore(dragEl, item);
-      } else {
-        list.insertBefore(dragEl, item.nextSibling);
-      }
-    });
-
-    item.addEventListener('dragleave', () => {
-      item.classList.remove('drag-over');
+    row.addEventListener('dragend', () => {
+      row.classList.remove('dragging');
+      list.querySelectorAll('.sidebar-item-row').forEach(r => r.classList.remove('drag-over'));
+      dragRow = null;
+      saveOrder(list, group);
     });
   });
+
+  list.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (!dragRow) return;
+    const target = e.target.closest('.sidebar-item-row');
+    if (!target || target === dragRow) return;
+    list.querySelectorAll('.sidebar-item-row').forEach(r => r.classList.remove('drag-over'));
+    target.classList.add('drag-over');
+    const rect = target.getBoundingClientRect();
+    if (e.clientY < rect.top + rect.height / 2) {
+      list.insertBefore(dragRow, target);
+    } else {
+      list.insertBefore(dragRow, target.nextSibling);
+    }
+  });
+
+  list.addEventListener('dragleave', e => {
+    if (!list.contains(e.relatedTarget)) {
+      list.querySelectorAll('.sidebar-item-row').forEach(r => r.classList.remove('drag-over'));
+    }
+  });
+
+  list.addEventListener('drop', e => {
+    e.preventDefault();
+    list.querySelectorAll('.sidebar-item-row').forEach(r => r.classList.remove('drag-over'));
+    saveOrder(list, group);
+  });
+}
+
+function saveOrder(list, group) {
+  const ids = [...list.querySelectorAll('.sidebar-item-row')]
+    .map(el => el.dataset.schemaId)
+    .filter(Boolean);
+  setManualOrder(group, ids);
 }
 
 // ── Sort Dropdown ──────────────────────────────────────────────────────────
@@ -382,7 +422,7 @@ function openSortDropdown(anchorBtn, group, sidebarContainer) {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function shortSortLabel(mode) {
-  return { manual:'Manuell', default:'Standard', 'alpha-asc':'A→Z', 'alpha-desc':'Z→A',
+  return { default:'Standard', 'alpha-asc':'A→Z', 'alpha-desc':'Z→A',
     'count-desc':'Meiste', 'count-asc':'Wenigste', 'modified-desc':'Geändert',
     'modified-asc':'Älteste Änd.', 'created-desc':'Erstellt', 'created-asc':'Älteste',
     'accessed-desc':'Geöffnet' }[mode] ?? mode;
