@@ -4,7 +4,7 @@
     import { parseCsv } from './services/csv-service.js';
     import { detectDuplicates } from './services/duplicate-service.js';
     import { initSidebar, restoreTheme } from './ui/sidebar.js';
-    import { touchCreated, touchModified } from './services/schema-meta-service.js';
+    import { touchCreated, touchModified, setRowCount } from './services/schema-meta-service.js';
     import { initToolbar } from './ui/toolbar.js';
     import { initTable } from './ui/table.js';
     import { initStatusbar } from './ui/statusbar.js';
@@ -59,6 +59,7 @@
           }));
           const withDups = detectDuplicates(withIds, schema.type);
           await db.set('tables', schema.id, withDups);
+          await touchModified(schema.id, withDups.length);
         } catch (err) {
           console.warn(`[migration] Konnte ${schema.file} nicht laden:`, err.message);
           // Store empty array so schema is registered

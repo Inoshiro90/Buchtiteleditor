@@ -139,7 +139,7 @@ function bindEvents(body) {
     if (resultEl) { resultEl.style.display = 'none'; resultEl.textContent = ''; }
 
     try {
-      const { imported, errors } = await importDatabaseFromJSON(file);
+      const { imported, errors, newClasses = 0 } = await importDatabaseFromJSON(file);
       if (resultEl) {
         resultEl.style.display = '';
         resultEl.style.color   = errors.length ? 'var(--color-warn)' : 'var(--color-green)';
@@ -147,7 +147,8 @@ function bindEvents(body) {
           ? `${imported} Tabellen importiert · ${errors.length} Fehler: ${errors.join(', ')}`
           : `${imported} Tabellen erfolgreich importiert.`;
       }
-      showToast(`Backup wiederhergestellt (${imported} Tabellen)`, 'success');
+      const newMsg = newClasses > 0 ? ` · ${newClasses} neue Klassen angelegt` : '';
+      showToast(`Backup wiederhergestellt (${imported} Tabellen${newMsg})`, 'success');
     } catch (err) {
       if (resultEl) {
         resultEl.style.display = '';

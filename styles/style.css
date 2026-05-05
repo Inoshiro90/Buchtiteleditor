@@ -1702,3 +1702,70 @@ dialog::backdrop {
   color: var(--c-dsl-def);
   background: rgba(124, 111, 205, 0.09);
 }
+
+/* ── Sidebar rename ───────────────────────────────────────────── */
+.sidebar-item.renaming {
+  background: rgba(0,117,222,0.12) !important;
+}
+
+.sidebar-rename-input:focus {
+  outline: none;
+}
+
+.sidebar-item-rename {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-micro);
+  font-size: 10px;
+  color: var(--text-muted);
+  transition: background var(--dur-fast), color var(--dur-fast);
+  cursor: pointer;
+}
+
+.sidebar-item:hover .sidebar-item-rename { display: flex; }
+
+.sidebar-item-rename:hover {
+  background: rgba(0,117,222,0.12);
+  color: var(--color-accent);
+}
+
+/* When rename is shown, hide delete unless hovered */
+.sidebar-item:hover .sidebar-item-rename ~ .sidebar-item-delete {
+  display: none;
+}
+
+.sidebar-item:hover .sidebar-item-rename:hover ~ .sidebar-item-delete,
+.sidebar-item:hover .sidebar-item-delete:hover {
+  display: flex;
+}
+
+/* ── Drag & Drop ─────────────────────────────────────────────── */
+.sidebar-drag-handle {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: grab;
+  padding: 0 2px;
+  opacity: 0;
+  transition: opacity var(--dur-fast);
+  user-select: none;
+  letter-spacing: -1px;
+}
+
+.sidebar-item:hover .sidebar-drag-handle { opacity: 0.6; }
+.sidebar-item.dragging .sidebar-drag-handle { cursor: grabbing; }
+
+.sidebar-item.dragging {
+  opacity: 0.4;
+}
+
+.sidebar-item.drag-over {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+  border-radius: var(--radius-micro);
+}

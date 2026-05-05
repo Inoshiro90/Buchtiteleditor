@@ -102,6 +102,7 @@ function buildGrid(container, schema, rows) {
       resizable: true,
       sortable: true,
       filter: true,
+      suppressMovable: true,
       cellStyle: (params) => {
         if (params.data?._isDuplicate) {
           return { backgroundColor: 'rgba(255, 165, 0, 0.12)', borderLeft: '3px solid #f59e0b' };
@@ -172,6 +173,19 @@ function buildGrid(container, schema, rows) {
       gridApi = params.api;
       const filterText = AppStore.get('filterText');
       if (filterText) params.api.setGridOption('quickFilterText', filterText);
+
+      // TSV paste: intercept Ctrl+V / Cmd+V on the grid container
+      const gridEl = params.api.getGridElement?.() ?? container;
+      gridEl.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+          // Only intercept if no cell is currently being edited
+          const editingCells = params.api.getEditingCells();
+          if (editingCells.length === 0) {
+            e.preventDefault();
+            handleTSVPaste(params.api);
+          }
+        }
+      });
     },
     rowClassRules: {
       'row-duplicate':             (params) => params.data?._isDuplicate === true,
@@ -277,6 +291,84 @@ function buildColDefs(schema) {
 
   return [checkboxCol, rowNumCol, ...dataCols];
 }
+
+// ── TSV Paste Handler ──────────────────────────────────────────────────────
+/**
+ * Read clipboard text, parse as TSV (Tab = column, newline = row),
+ * and apply starting from the currently focused/selected cell.
+ * If no cell is selected, starts at row 0, col 0 (first data column).
+ */
+async function handleTSVPaste(api) {
+  let text;
+  try {
+    text = await navigator.clipboard.readText();
+  } catch (_) {
+    // Clipboard API blocked — fall through to browser default
+    return;
+  }
+  if (!text?.trim()) return;
+
+  const schema = _currentSchema;
+  if (!schema) return;
+
+  // Parse TSV
+  const pastedRows = text
+    .split(/\r?\n/)
+    .filter(line => line.length > 0)
+    .map(line => line.split('\t'));
+
+  if (!pastedRows.length) return;
+
+  // Determine start cell
+  const focusedCell = api.getFocusedCell();
+  const dataColIds  = schema.columns.map(c => c.field); // skip checkbox + rowNum cols
+
+  // rowIndex of first target row
+  let startRow = focusedCell?.rowIndex ?? 0;
+  // colIndex within dataColIds (0-based)
+  const focusedField = focusedCell?.column?.getColId?.();
+  let startCol = focusedField ? Math.max(0, dataColIds.indexOf(focusedField)) : 0;
+
+  // Collect all current rows
+  const allRows = [];
+  api.forEachNodeAfterFilterAndSort(node => allRows.push({ ...node.data }));
+
+  // Extend rows array if paste would go beyond current row count
+  const totalRowsNeeded = startRow + pastedRows.length;
+  while (allRows.length < totalRowsNeeded) {
+    const emptyRow = { _id: `paste_${Date.now()}_${allRows.length}`, _isDuplicate: false };
+    schema.columns.forEach(col => { emptyRow[col.field] = ''; });
+    allRows.push(emptyRow);
+  }
+
+  // Apply pasted values
+  pastedRows.forEach((cols, ri) => {
+    const targetRow = allRows[startRow + ri];
+    if (!targetRow) return;
+    cols.forEach((val, ci) => {
+      const field = dataColIds[startCol + ci];
+      if (field) targetRow[field] = val.trim();
+    });
+  });
+
+  // Run duplicate detection and persist
+  const { detectDuplicates, runCrossClassCheck } = await import('../services/duplicate-service.js');
+  const withDups  = detectDuplicates(allRows, schema.type);
+  const schemas   = AppStore.get('schemas') ?? [];
+  const withCross = await runCrossClassCheck(withDups, schema, db, schemas);
+
+  AppStore.set('rows', withCross);
+  AppStore.set('crossClassDuplicates', withCross.filter(r => r._isCrossClassDuplicate));
+
+  api.setGridOption('rowData', withCross);
+  await db.set('tables', schema.id, withCross);
+  touchModified(schema.id, withCross.length);
+
+  // Move focus to cell after paste region
+  const lastPasteRow = startRow + pastedRows.length - 1;
+  api.setFocusedCell(lastPasteRow, dataColIds[startCol] ?? dataColIds[0]);
+}
+
 
 function revalidateErrors(api) {
   const schemas = AppStore.get('schemas') ?? [];

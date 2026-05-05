@@ -1,9 +1,8 @@
 // scripts/services/schema-sort-service.js
-// Sort comparators for Nomen / Adjektiv class lists in the sidebar.
-// Sort preferences are persisted per group in localStorage.
+// Sort comparators + manual drag-and-drop order for Nomen/Adjektiv/Defektiv class lists.
 
-// ── Sort modes ─────────────────────────────────────────────────────────────
 export const SORT_MODES = [
+  { id: 'manual',        label: 'Manuell (Drag & Drop)' },
   { id: 'default',       label: 'Standard (Originalreihenfolge)' },
   { id: 'alpha-asc',     label: 'A → Z' },
   { id: 'alpha-desc',    label: 'Z → A' },
@@ -16,51 +15,40 @@ export const SORT_MODES = [
   { id: 'accessed-desc', label: 'Zuletzt geöffnet' },
 ];
 
-const STORAGE_KEY = 'btg-editor-sort';
+const SORT_KEY  = 'btg-editor-sort';
+const ORDER_KEY = 'btg-editor-order'; // manual drag-and-drop order per group
 
 // ── Persistence ────────────────────────────────────────────────────────────
-function loadPrefs() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}'); } catch { return {}; }
+function loadPrefs(key) {
+  try { return JSON.parse(localStorage.getItem(key) ?? '{}'); } catch { return {}; }
+}
+function savePrefs(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
 }
 
-function savePrefs(prefs) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs)); } catch {}
+export function getSortMode(group)        { return loadPrefs(SORT_KEY)[group]  ?? 'default'; }
+export function setSortMode(group, mode)  {
+  const p = loadPrefs(SORT_KEY); p[group] = mode; savePrefs(SORT_KEY, p);
 }
 
-/**
- * Get the saved sort mode for a group (e.g. 'nomen', 'adjektiv').
- */
-export function getSortMode(group) {
-  return loadPrefs()[group] ?? 'default';
-}
-
-/**
- * Persist a sort mode for a group.
- */
-export function setSortMode(group, mode) {
-  const prefs = loadPrefs();
-  prefs[group] = mode;
-  savePrefs(prefs);
+export function getManualOrder(group)         { return loadPrefs(ORDER_KEY)[group] ?? []; }
+export function setManualOrder(group, idList) {
+  const p = loadPrefs(ORDER_KEY); p[group] = idList; savePrefs(ORDER_KEY, p);
 }
 
 // ── Sorting ────────────────────────────────────────────────────────────────
-/**
- * Sort a list of schemas using the given mode and metadata map.
- *
- * @param {object[]} schemas
- * @param {string}   mode         — one of SORT_MODES[*].id
- * @param {object}   metaMap      — { [schemaId]: { rowCount, modifiedAt, createdAt, lastAccessedAt } }
- * @param {number[]} defaultOrder — original indices (for stable 'default' sort)
- * @returns {object[]}
- */
-export function sortSchemas(schemas, mode, metaMap, defaultOrder) {
-  if (mode === 'default') return schemas; // preserve original order
+export function sortSchemas(schemas, mode, metaMap) {
+  const meta = id => metaMap[id] ?? {};
 
-  const meta = (id) => metaMap[id] ?? {};
+  if (mode === 'default') return schemas;
+
+  if (mode === 'manual') {
+    // Not handled here — caller uses applyManualOrder
+    return schemas;
+  }
 
   const copy = [...schemas];
-
-  const comparators = {
+  const cmp = {
     'alpha-asc':     (a, b) => a.label.localeCompare(b.label, 'de', { sensitivity: 'base' }),
     'alpha-desc':    (a, b) => b.label.localeCompare(a.label, 'de', { sensitivity: 'base' }),
     'count-desc':    (a, b) => (meta(b.id).rowCount ?? 0) - (meta(a.id).rowCount ?? 0),
@@ -70,43 +58,51 @@ export function sortSchemas(schemas, mode, metaMap, defaultOrder) {
     'created-desc':  (a, b) => (meta(b.id).createdAt ?? 0) - (meta(a.id).createdAt ?? 0),
     'created-asc':   (a, b) => (meta(a.id).createdAt ?? 0) - (meta(b.id).createdAt ?? 0),
     'accessed-desc': (a, b) => (meta(b.id).lastAccessedAt ?? 0) - (meta(a.id).lastAccessedAt ?? 0),
-  };
+  }[mode];
 
-  const cmp = comparators[mode];
   if (!cmp) return copy;
-
-  // Secondary sort: alpha-asc for stable ties
   return copy.sort((a, b) => {
-    const primary = cmp(a, b);
-    if (primary !== 0) return primary;
-    return a.label.localeCompare(b.label, 'de', { sensitivity: 'base' });
+    const p = cmp(a, b);
+    return p !== 0 ? p : a.label.localeCompare(b.label, 'de', { sensitivity: 'base' });
   });
 }
 
 /**
- * Formatted value for a sort mode badge (shown next to count in sidebar).
- * Returns a short human-readable value or '' if not available.
+ * Apply saved manual order to a schema list.
+ * Schemas not in the saved order are appended at the end.
  */
+export function applyManualOrder(schemas, group) {
+  const order = getManualOrder(group);
+  if (!order.length) return schemas;
+  const orderMap = new Map(order.map((id, i) => [id, i]));
+  const inOrder  = [...schemas].sort((a, b) => {
+    const ai = orderMap.has(a.id) ? orderMap.get(a.id) : 9999;
+    const bi = orderMap.has(b.id) ? orderMap.get(b.id) : 9999;
+    return ai - bi;
+  });
+  return inOrder;
+}
+
+// ── Badge value ────────────────────────────────────────────────────────────
 export function getSortBadgeValue(schemaId, mode, metaMap) {
-  const meta = metaMap[schemaId] ?? {};
+  const m = metaMap[schemaId] ?? {};
   switch (mode) {
     case 'count-desc':
     case 'count-asc':
-      return meta.rowCount != null ? `${meta.rowCount}` : '';
+      return m.rowCount != null ? String(m.rowCount) : '';
     case 'modified-desc':
     case 'modified-asc':
-      return meta.modifiedAt ? relativeTime(meta.modifiedAt) : '';
+      return m.modifiedAt ? relativeTime(m.modifiedAt) : '';
     case 'created-desc':
     case 'created-asc':
-      return meta.createdAt ? formatDate(meta.createdAt) : '';
+      return m.createdAt ? formatDate(m.createdAt) : '';
     case 'accessed-desc':
-      return meta.lastAccessedAt ? relativeTime(meta.lastAccessedAt) : '';
+      return m.lastAccessedAt ? relativeTime(m.lastAccessedAt) : '';
     default:
-      return meta.rowCount != null ? `${meta.rowCount}` : '';
+      return m.rowCount != null ? String(m.rowCount) : '';
   }
 }
 
-// ── Time helpers ───────────────────────────────────────────────────────────
 function relativeTime(ts) {
   const diff = Date.now() - ts;
   const m = Math.floor(diff / 60000);
@@ -118,8 +114,6 @@ function relativeTime(ts) {
   if (d < 7)   return `vor ${d} Tag${d !== 1 ? 'en' : ''}`;
   return formatDate(ts);
 }
-
 function formatDate(ts) {
-  const d = new Date(ts);
-  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  return new Date(ts).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
