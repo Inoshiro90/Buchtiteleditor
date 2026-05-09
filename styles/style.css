@@ -304,7 +304,7 @@ body {
 	display: flex;
 	height: 100vh;
 	width: 100vw;
-	overflow: hidden;
+	overflow: hidden; /* clips sidebar, not toolbar */
 }
 .app.hidden {
 	display: none;
@@ -463,8 +463,14 @@ body {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
-	overflow: hidden;
+	overflow: hidden; /* keep for table-area */
 	background: var(--bg-page);
+}
+
+/* Problem 5: Toolbar aus dem overflow:hidden von .main herauslösen.
+   Die Toolbar darf nicht durch den Parent geclipt werden. */
+.toolbar {
+	contain: layout; /* eigener Stacking Context ohne clip */
 }
 
 /* ── Toolbar ─────────────────────────────────────────────────── */
@@ -475,21 +481,31 @@ body {
 	border-bottom: var(--border-whisper);
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
+	/* Problem 2 Fix: flex-start statt space-between — Inhalte stauen sich
+	   nicht zusammen, sondern laufen über → overflow-x:auto greift */
+	justify-content: flex-start;
 	padding: 0 14px;
 	gap: 10px;
-	overflow: hidden;
+	/* Problem 2 Fix: kein max-width limit auf Kinder */
+	overflow-x: auto;
+	overflow-y: hidden;
+	-webkit-overflow-scrolling: touch;
+	scrollbar-width: none; /* Firefox */
 	box-shadow: var(--shadow-card);
 	position: relative;
 	z-index: var(--z-nav);
+}
+
+.toolbar::-webkit-scrollbar {
+	display: none;
 }
 
 .toolbar-left {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	flex-shrink: 0;
-	overflow: hidden;
+	flex-shrink: 0; /* nie komprimieren */
+	min-width: max-content; /* Problem 2: erzwingt natürliche Breite */
 }
 
 .toolbar-right {
@@ -497,6 +513,8 @@ body {
 	align-items: center;
 	gap: 8px;
 	flex-shrink: 0;
+	min-width: max-content; /* Problem 2: erzwingt natürliche Breite */
+	margin-left: auto; /* schiebt rechten Block ans Ende wenn Platz da */
 }
 
 .toolbar-schema-name {
@@ -968,10 +986,15 @@ svg[aria-hidden='true'] {
 	padding: 0 !important;
 }
 
+.ag-cell {
+	align-content: center;
+	font-size: var(--text-body);
+}
+
 /* ── DSL Cell Highlighting ───────────────────────────────────── */
 .dsl-cell-content {
-	font-family: var(--font-mono);
-	font-size: 12px;
+	font-family: var(--font-sans);
+	font-size: var(--text-body);
 	line-height: 1.4;
 	display: block;
 	overflow: hidden;
@@ -985,7 +1008,7 @@ svg[aria-hidden='true'] {
 .dsl-token {
 	border-radius: 3px;
 	padding: 0 2px;
-	font-size: 11px;
+	font-size: var(--text-body);
 	font-weight: var(--fw-medium);
 }
 .dsl-nom {
@@ -1431,509 +1454,1084 @@ dialog::backdrop {
 
 /* ── Database modal ───────────────────────────────────────────── */
 .db-section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 4px 0;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 4px 0;
 }
 
 .db-section-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
 }
 
 .db-section-header > svg {
-  margin-top: 2px;
-  flex-shrink: 0;
-  color: var(--text-secondary);
+	margin-top: 2px;
+	flex-shrink: 0;
+	color: var(--text-secondary);
 }
 
 .db-section-title {
-  font-size: 14px;
-  font-weight: var(--fw-semibold);
-  color: var(--text-primary);
-  margin-bottom: 3px;
+	font-size: 14px;
+	font-weight: var(--fw-semibold);
+	color: var(--text-primary);
+	margin-bottom: 3px;
 }
 
 .db-section-sub {
-  font-size: 12px;
-  color: var(--text-secondary);
-  line-height: 1.5;
+	font-size: 12px;
+	color: var(--text-secondary);
+	line-height: 1.5;
 }
 
 .db-divider {
-  height: 1px;
-  background: var(--border-color);
-  margin: 12px 0;
+	height: 1px;
+	background: var(--border-color);
+	margin: 12px 0;
 }
 
 .db-action-btn {
-  align-self: flex-start;
+	align-self: flex-start;
 }
 
 .db-reset-confirm {
-  border: 1px solid rgba(231, 76, 60, 0.25);
-  border-radius: var(--radius-sm);
-  padding: 12px;
-  background: rgba(231, 76, 60, 0.04);
+	border: 1px solid rgba(231, 76, 60, 0.25);
+	border-radius: var(--radius-sm);
+	padding: 12px;
+	background: rgba(231, 76, 60, 0.04);
 }
 
 /* Sidebar database button */
 .sidebar-db-btn {
-  margin-top: 4px;
+	margin-top: 4px;
 }
 
 /* ── Batch modal result blocks ────────────────────────────────── */
 .batch-result-section {
-  border: var(--border-whisper);
-  border-radius: var(--radius-micro);
-  overflow: hidden;
+	border: var(--border-whisper);
+	border-radius: var(--radius-micro);
+	overflow: hidden;
 }
 
 .batch-result-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  font-size: 13px;
-  font-weight: var(--fw-semibold);
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	font-size: 13px;
+	font-weight: var(--fw-semibold);
 }
 
-.batch-result-ok  { background: rgba(26,174,57,0.08); color: var(--color-green); }
-.batch-result-err { background: rgba(231,76,60,0.08);  color: var(--color-danger); }
+.batch-result-ok {
+	background: rgba(26, 174, 57, 0.08);
+	color: var(--color-green);
+}
+.batch-result-err {
+	background: rgba(231, 76, 60, 0.08);
+	color: var(--color-danger);
+}
 
 .batch-result-list {
-  padding: 6px 0;
-  background: var(--bg-warm);
+	padding: 6px 0;
+	background: var(--bg-warm);
 }
 
 .batch-result-row {
-  padding: 5px 12px;
-  border-bottom: var(--border-whisper);
-  line-height: 1.5;
+	padding: 5px 12px;
+	border-bottom: var(--border-whisper);
+	line-height: 1.5;
 }
-.batch-result-row:last-child { border-bottom: none; }
+.batch-result-row:last-child {
+	border-bottom: none;
+}
 
-.batch-result-row-err { background: rgba(231,76,60,0.03); }
+.batch-result-row-err {
+	background: rgba(231, 76, 60, 0.03);
+}
 
 .batch-result-file {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: var(--fw-semibold);
-  color: var(--text-primary);
-  display: block;
+	font-family: var(--font-mono);
+	font-size: 12px;
+	font-weight: var(--fw-semibold);
+	color: var(--text-primary);
+	display: block;
 }
 
 .batch-result-meta {
-  font-size: 11px;
-  color: var(--text-secondary);
-  margin-left: 4px;
+	font-size: 11px;
+	color: var(--text-secondary);
+	margin-left: 4px;
 }
 
 .batch-result-reason {
-  font-size: 12px;
-  color: var(--color-danger);
-  margin-top: 2px;
+	font-size: 12px;
+	color: var(--color-danger);
+	margin-top: 2px;
 }
 
 .batch-result-detail {
-  font-size: 11px;
-  color: var(--text-secondary);
-  margin-top: 3px;
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  flex-wrap: wrap;
+	font-size: 11px;
+	color: var(--text-secondary);
+	margin-top: 3px;
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	flex-wrap: wrap;
 }
 
 .batch-label {
-  font-weight: var(--fw-semibold);
-  flex-shrink: 0;
+	font-weight: var(--fw-semibold);
+	flex-shrink: 0;
 }
 
 .batch-result-detail code {
-  font-family: var(--font-mono);
-  background: var(--bg-surface);
-  border: var(--border-whisper);
-  border-radius: 3px;
-  padding: 0 4px;
-  font-size: 10px;
+	font-family: var(--font-mono);
+	background: var(--bg-surface);
+	border: var(--border-whisper);
+	border-radius: 3px;
+	padding: 0 4px;
+	font-size: 10px;
 }
 
 /* ── Cross-class duplicate highlighting ──────────────────────── */
 /* Distinct from within-class (orange) — use teal/blue border */
 .row-cross-class-duplicate .ag-cell {
-  background-color: rgba(42, 157, 153, 0.06) !important;
-  border-left: 2px solid rgba(42, 157, 153, 0.5) !important;
+	background-color: rgba(42, 157, 153, 0.06) !important;
+	border-left: 2px solid rgba(42, 157, 153, 0.5) !important;
 }
 
 /* Statusbar badge for cross-class duplicates */
 .statusbar-cross-dup-badge {
-  background: rgba(42, 157, 153, 0.10);
-  color: var(--color-teal);
-  border-radius: var(--radius-pill);
-  padding: 1px 8px;
-  font-size: 10px;
-  font-weight: var(--fw-semibold);
-  cursor: help;
-  border: 1px solid rgba(42, 157, 153, 0.25);
+	background: rgba(42, 157, 153, 0.1);
+	color: var(--color-teal);
+	border-radius: var(--radius-pill);
+	padding: 1px 8px;
+	font-size: 10px;
+	font-weight: var(--fw-semibold);
+	cursor: help;
+	border: 1px solid rgba(42, 157, 153, 0.25);
 }
 
 /* ── Sidebar sort controls ────────────────────────────────────── */
 .sidebar-group-label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
 }
 
 .sidebar-group-label-text {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+	display: flex;
+	align-items: center;
+	gap: 5px;
 }
 
 .sidebar-sort-wrap {
-  flex-shrink: 0;
+	flex-shrink: 0;
 }
 
 .sidebar-sort-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: none;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-micro);
-  color: var(--text-muted);
-  font-size: 10px;
-  font-family: var(--font-sans);
-  font-weight: var(--fw-medium);
-  padding: 2px 5px;
-  cursor: pointer;
-  transition: background var(--dur-base), color var(--dur-base), border-color var(--dur-base);
-  white-space: nowrap;
-  line-height: 1.4;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	background: none;
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-micro);
+	color: var(--text-muted);
+	font-size: 10px;
+	font-family: var(--font-sans);
+	font-weight: var(--fw-medium);
+	padding: 2px 5px;
+	cursor: pointer;
+	transition:
+		background var(--dur-base),
+		color var(--dur-base),
+		border-color var(--dur-base);
+	white-space: nowrap;
+	line-height: 1.4;
 }
 
 .sidebar-sort-btn:hover {
-  background: rgba(0, 0, 0, 0.05);
-  color: var(--text-primary);
-  border-color: rgba(0, 0, 0, 0.2);
+	background: rgba(0, 0, 0, 0.05);
+	color: var(--text-primary);
+	border-color: rgba(0, 0, 0, 0.2);
 }
 
-[data-theme="dark"] .sidebar-sort-btn:hover {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.2);
+[data-theme='dark'] .sidebar-sort-btn:hover {
+	background: rgba(255, 255, 255, 0.07);
+	border-color: rgba(255, 255, 255, 0.2);
 }
 
 /* Dropdown */
 .sidebar-sort-dropdown {
-  background: var(--bg-surface);
-  border: var(--border-medium);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-deep);
-  min-width: 200px;
-  padding: 4px 0;
-  overflow: hidden;
+	background: var(--bg-surface);
+	border: var(--border-medium);
+	border-radius: var(--radius-sm);
+	box-shadow: var(--shadow-deep);
+	min-width: 200px;
+	padding: 4px 0;
+	overflow: hidden;
 }
 
 .sidebar-sort-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 7px 12px;
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-family: var(--font-sans);
-  font-weight: var(--fw-regular);
-  cursor: pointer;
-  text-align: left;
-  transition: background var(--dur-fast), color var(--dur-fast);
-  white-space: nowrap;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	padding: 7px 12px;
+	background: none;
+	border: none;
+	color: var(--text-secondary);
+	font-size: 12px;
+	font-family: var(--font-sans);
+	font-weight: var(--fw-regular);
+	cursor: pointer;
+	text-align: left;
+	transition:
+		background var(--dur-fast),
+		color var(--dur-fast);
+	white-space: nowrap;
 }
 
 .sidebar-sort-option:hover {
-  background: rgba(0, 0, 0, 0.04);
-  color: var(--text-primary);
+	background: rgba(0, 0, 0, 0.04);
+	color: var(--text-primary);
 }
 
 .sidebar-sort-option.active {
-  color: var(--color-accent);
-  font-weight: var(--fw-semibold);
+	color: var(--color-accent);
+	font-weight: var(--fw-semibold);
 }
 
-[data-theme="dark"] .sidebar-sort-option:hover {
-  background: rgba(255, 255, 255, 0.05);
+[data-theme='dark'] .sidebar-sort-option:hover {
+	background: rgba(255, 255, 255, 0.05);
 }
 
 /* Badge in sidebar items showing sort-relevant value */
 .sidebar-item-badge {
-  margin-left: auto;
-  flex-shrink: 0;
-  font-size: 10px;
-  font-family: var(--font-mono);
-  color: var(--text-muted);
-  background: var(--bg-warm);
-  border-radius: var(--radius-pill);
-  padding: 1px 5px;
-  border: 1px solid var(--border-color);
-  line-height: 1.4;
-  /* Hide when delete button is shown on hover */
+	margin-left: auto;
+	flex-shrink: 0;
+	font-size: 10px;
+	font-family: var(--font-mono);
+	color: var(--text-muted);
+	background: var(--bg-warm);
+	border-radius: var(--radius-pill);
+	padding: 1px 5px;
+	border: 1px solid var(--border-color);
+	line-height: 1.4;
+	/* Hide when delete button is shown on hover */
 }
 
 /* When hovering a sidebar item, hide badge and show delete */
 .sidebar-item:hover .sidebar-item-badge {
-  display: none;
+	display: none;
 }
 
 .sidebar-item:hover .sidebar-item-delete {
-  display: flex;
+	display: flex;
 }
 
 /* ── Defektiva ────────────────────────────────────────────────── */
 /* DSL token colour for {DEF:...} */
-:root { --c-dsl-def: #7c6fcd; }
-[data-theme="dark"] { --c-dsl-def: #a78bfa; }
+:root {
+	--c-dsl-def: #7c6fcd;
+}
+[data-theme='dark'] {
+	--c-dsl-def: #a78bfa;
+}
 
 .dsl-def {
-  color: var(--c-dsl-def);
-  background: rgba(124, 111, 205, 0.09);
+	color: var(--c-dsl-def);
+	background: rgba(124, 111, 205, 0.09);
 }
 
 /* ── Sidebar rename ───────────────────────────────────────────── */
 .sidebar-item.renaming {
-  background: rgba(0,117,222,0.12) !important;
+	background: rgba(0, 117, 222, 0.12) !important;
 }
 
 .sidebar-rename-input:focus {
-  outline: none;
+	outline: none;
 }
 
 .sidebar-item-rename {
-  margin-left: auto;
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-micro);
-  font-size: 10px;
-  color: var(--text-muted);
-  transition: background var(--dur-fast), color var(--dur-fast);
-  cursor: pointer;
+	margin-left: auto;
+	flex-shrink: 0;
+	width: 18px;
+	height: 18px;
+	display: none;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--radius-micro);
+	font-size: 10px;
+	color: var(--text-muted);
+	transition:
+		background var(--dur-fast),
+		color var(--dur-fast);
+	cursor: pointer;
 }
 
-.sidebar-item:hover .sidebar-item-rename { display: flex; }
+.sidebar-item:hover .sidebar-item-rename {
+	display: flex;
+}
 
 .sidebar-item-rename:hover {
-  background: rgba(0,117,222,0.12);
-  color: var(--color-accent);
+	background: rgba(0, 117, 222, 0.12);
+	color: var(--color-accent);
 }
 
 /* When rename is shown, hide delete unless hovered */
 .sidebar-item:hover .sidebar-item-rename ~ .sidebar-item-delete {
-  display: none;
+	display: none;
 }
 
 .sidebar-item:hover .sidebar-item-rename:hover ~ .sidebar-item-delete,
 .sidebar-item:hover .sidebar-item-delete:hover {
-  display: flex;
+	display: flex;
 }
 
 /* ── Drag & Drop ─────────────────────────────────────────────── */
 .sidebar-drag-handle {
-  flex-shrink: 0;
-  font-size: 12px;
-  color: var(--text-muted);
-  cursor: grab;
-  padding: 0 2px;
-  opacity: 0;
-  transition: opacity var(--dur-fast);
-  user-select: none;
-  letter-spacing: -1px;
+	flex-shrink: 0;
+	font-size: 12px;
+	color: var(--text-muted);
+	cursor: grab;
+	padding: 0 2px;
+	opacity: 0;
+	transition: opacity var(--dur-fast);
+	user-select: none;
+	letter-spacing: -1px;
 }
 
-.sidebar-item:hover .sidebar-drag-handle { opacity: 0.6; }
-.sidebar-item.dragging .sidebar-drag-handle { cursor: grabbing; }
+.sidebar-item:hover .sidebar-drag-handle {
+	opacity: 0.6;
+}
+.sidebar-item.dragging .sidebar-drag-handle {
+	cursor: grabbing;
+}
 
 .sidebar-item.dragging {
-  opacity: 0.4;
+	opacity: 0.4;
 }
 
 .sidebar-item.drag-over {
-  outline: 2px solid var(--color-accent);
-  outline-offset: -2px;
-  border-radius: var(--radius-micro);
+	outline: 2px solid var(--color-accent);
+	outline-offset: -2px;
+	border-radius: var(--radius-micro);
 }
 
 /* ── Sidebar redesign (P1 + P2) ──────────────────────────────── */
 
 /* Row wrapper replaces the old single button */
 .sidebar-item-row {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  padding: 0 4px 0 0;
-  border-radius: var(--radius-micro);
-  transition: background var(--dur-base);
-  position: relative;
+	display: flex;
+	align-items: center;
+	gap: 0;
+	padding: 0 4px 0 0;
+	border-radius: var(--radius-micro);
+	transition: background var(--dur-base);
+	position: relative;
 }
 
 .sidebar-item-row:hover,
 .sidebar-item-row.active {
-  background: rgba(0, 117, 222, 0.06);
+	background: rgba(0, 117, 222, 0.06);
 }
 
 .sidebar-item-row.active {
-  background: rgba(0, 117, 222, 0.10);
+	background: rgba(0, 117, 222, 0.1);
 }
 
 .sidebar-item-row.active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 3px;
-  bottom: 3px;
-  width: 3px;
-  background: var(--color-accent);
-  border-radius: 0 2px 2px 0;
+	content: '';
+	position: absolute;
+	left: 0;
+	top: 3px;
+	bottom: 3px;
+	width: 3px;
+	background: var(--color-accent);
+	border-radius: 0 2px 2px 0;
 }
 
 /* P2: drag handle — always visible, muted until hover */
 .sidebar-drag-handle {
-  flex-shrink: 0;
-  width: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: grab;
-  color: var(--text-muted);
-  opacity: 0.3;
-  padding: 6px 0;
-  touch-action: none;
-  transition: opacity var(--dur-fast);
+	flex-shrink: 0;
+	width: 20px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: grab;
+	color: var(--text-muted);
+	opacity: 0.3;
+	padding: 6px 0;
+	touch-action: none;
+	transition: opacity var(--dur-fast);
 }
 
-.sidebar-item-row:hover .sidebar-drag-handle { opacity: 0.7; }
-.sidebar-item-row.dragging .sidebar-drag-handle { cursor: grabbing; }
-.sidebar-item-row.dragging { opacity: 0.45; }
+.sidebar-item-row:hover .sidebar-drag-handle {
+	opacity: 0.7;
+}
+.sidebar-item-row.dragging .sidebar-drag-handle {
+	cursor: grabbing;
+}
+.sidebar-item-row.dragging {
+	opacity: 0.45;
+}
 
 .sidebar-item-row.drag-over {
-  outline: 2px solid var(--color-accent);
-  outline-offset: -2px;
+	outline: 2px solid var(--color-accent);
+	outline-offset: -2px;
 }
 
 /* Nav button takes available space */
 .sidebar-item-nav {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 6px 4px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-secondary);
-  font-size: var(--text-caption);
-  font-family: var(--font-sans);
-  font-weight: var(--fw-medium);
-  text-align: left;
-  overflow: hidden;
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	padding: 6px 4px;
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: var(--text-secondary);
+	font-size: var(--text-caption);
+	font-family: var(--font-sans);
+	font-weight: var(--fw-medium);
+	text-align: left;
+	overflow: hidden;
 }
 
-.sidebar-item-row.active .sidebar-item-nav { color: var(--color-accent); font-weight: var(--fw-semibold); }
+.sidebar-item-row.active .sidebar-item-nav {
+	color: var(--color-accent);
+	font-weight: var(--fw-semibold);
+}
 
-.sidebar-item-nav .sidebar-item-icon { flex-shrink: 0; font-size: 13px; }
+.sidebar-item-nav .sidebar-item-icon {
+	flex-shrink: 0;
+	font-size: 13px;
+}
 .sidebar-item-nav .sidebar-item-label {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 /* P1: action buttons — always visible, separate column, no overlap */
 .sidebar-item-actions {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 1px;
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	gap: 1px;
 }
 
 .sidebar-action-btn {
-  width: 26px;
-  height: 26px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: none;
-  border-radius: var(--radius-micro);
-  cursor: pointer;
-  color: var(--text-muted);
-  transition: background var(--dur-fast), color var(--dur-fast);
-  /* Ensure minimum touch target for mobile
+	width: 26px;
+	height: 26px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: none;
+	border: none;
+	border-radius: var(--radius-micro);
+	cursor: pointer;
+	color: var(--text-muted);
+	transition:
+		background var(--dur-fast),
+		color var(--dur-fast);
+	/* Ensure minimum touch target for mobile
   min-width: 44px;
   min-height: 44px; */
-  padding: 0;
+	padding: 0;
 }
 
 .sidebar-rename-btn:hover,
 .sidebar-rename-btn:active {
-  background: rgba(0, 117, 222, 0.1);
-  color: var(--color-accent);
+	background: rgba(0, 117, 222, 0.1);
+	color: var(--color-accent);
 }
 
 .sidebar-delete-btn:hover,
 .sidebar-delete-btn:active {
-  background: rgba(231, 76, 60, 0.1);
-  color: var(--color-danger);
+	background: rgba(231, 76, 60, 0.1);
+	color: var(--color-danger);
 }
 
 /* On small screens: always full-size touch targets */
 @media (max-width: 600px) {
-  .sidebar-action-btn {
-    min-width: 44px;
-    min-height: 44px;
-  }
-  .sidebar-item-actions {
-    gap: 4px;
-  }
+	.sidebar-action-btn {
+		min-width: 44px;
+		min-height: 44px;
+	}
+	.sidebar-item-actions {
+		gap: 4px;
+	}
 }
 
 /* Badge */
 .sidebar-item-badge {
-  flex-shrink: 0;
-  font-size: 10px;
-  font-family: var(--font-mono);
-  color: var(--text-muted);
-  background: var(--bg-warm);
-  border-radius: var(--radius-pill);
-  padding: 1px 5px;
-  border: 1px solid var(--border-color);
-  line-height: 1.4;
+	flex-shrink: 0;
+	font-size: 10px;
+	font-family: var(--font-mono);
+	color: var(--text-muted);
+	background: var(--bg-warm);
+	border-radius: var(--radius-pill);
+	padding: 1px 5px;
+	border: 1px solid var(--border-color);
+	line-height: 1.4;
 }
 
 /* Rename input (inline) */
 .sidebar-rename-input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  border-radius: 3px;
-  outline: none;
-  background: var(--color-accent);
-  color: #fff;
-  font-size: 12px;
-  font-family: var(--font-sans);
-  font-weight: var(--fw-semibold);
-  padding: 2px 6px;
-  height: 22px;
+	flex: 1;
+	min-width: 0;
+	border: none;
+	border-radius: 3px;
+	outline: none;
+	background: var(--color-accent);
+	color: #fff;
+	font-size: 12px;
+	font-family: var(--font-sans);
+	font-weight: var(--fw-semibold);
+	padding: 2px 6px;
+	height: 22px;
 }
 
 /* Remove old hover-only rules that no longer apply */
-.sidebar-item-delete { display: none; } /* kept for compat, replaced by .sidebar-delete-btn */
-.sidebar-item-rename { display: none; } /* kept for compat, replaced by .sidebar-rename-btn */
+.sidebar-item-delete {
+	display: none;
+} /* kept for compat, replaced by .sidebar-delete-btn */
+.sidebar-item-rename {
+	display: none;
+} /* kept for compat, replaced by .sidebar-rename-btn */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PATCH — Änderungen 1–6
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Änderung 1: Virtuelle Klassen Panel ──────────────────────────────────── */
+.sidebar-virtual-group {
+	border-top: var(--border-whisper);
+	margin-top: 4px;
+	padding-top: 4px;
+}
+
+.sidebar-virtual-textarea {
+	display: block;
+	width: 100%;
+	padding: 6px 8px;
+	background: var(--c-surface-2);
+	border: 1px solid var(--c-border);
+	border-radius: var(--radius-micro);
+	color: var(--c-text);
+	font-size: 11px;
+	font-family: var(--font-mono);
+	line-height: 1.5;
+	resize: vertical;
+	box-sizing: border-box;
+	transition: border-color 0.15s;
+}
+
+.sidebar-virtual-textarea:focus {
+	outline: none;
+	border-color: var(--c-accent);
+	box-shadow: 0 0 0 2px rgba(var(--c-accent-rgb, 99 102 241) / 0.2);
+}
+
+/* ── Änderung 3: Undo/Redo Buttons ─────────────────────────────────────── */
+.toolbar-btn#btn-undo,
+.toolbar-btn#btn-redo {
+	padding: 4px 8px;
+	min-width: 32px;
+}
+
+.toolbar-btn#btn-undo:disabled,
+.toolbar-btn#btn-redo:disabled {
+	opacity: 0.35;
+	cursor: not-allowed;
+	pointer-events: none;
+}
+
+/* ── Änderung 4: Toolbar Inline-Rename ──────────────────────────────────── */
+.toolbar-schema-name-wrap {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+}
+
+.toolbar-rename-btn {
+	flex-shrink: 0;
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 2px 4px;
+	color: var(--c-text-muted);
+	opacity: 0.5;
+	border-radius: var(--radius-micro);
+	transition:
+		opacity 0.15s,
+		background 0.15s;
+	line-height: 1;
+}
+
+.toolbar-rename-btn:hover {
+	opacity: 1;
+	background: var(--c-surface-3);
+}
+
+.toolbar-rename-input {
+	font-size: inherit;
+	font-weight: inherit;
+	font-family: inherit;
+	background: var(--c-surface-2);
+	border: 1.5px solid var(--c-accent);
+	border-radius: var(--radius-micro);
+	color: var(--c-text);
+	padding: 2px 8px;
+	outline: none;
+	min-width: 120px;
+	max-width: 280px;
+	transition: box-shadow 0.15s;
+}
+
+.toolbar-rename-input:focus {
+	box-shadow: 0 0 0 2px rgba(var(--c-accent-rgb, 99 102 241) / 0.25);
+}
+
+/* ── Problem 5 Fix: Sidebar-Rename (kein visueller Hack nötig, rein JS) ─── */
+
+/* ── Problem 6: Transition für sofortige Sichtbarkeit (verhindert "blink") */
+.ag-row {
+	transition: background-color 0.08s;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PATCH v2 — Änderungen 1–3 / Problem 3
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Änderung 1: Virtuelle Klassen Button (Footer) ──────────────────────── */
+/* Inherits sidebar-db-btn style — no additional rules needed */
+
+/* Sidebar virtual-group Panel (entfernt, aber Compat-CSS bleibt) */
+.sidebar-virtual-group {
+	display: none;
+}
+
+/* ── Problem 3: Rename Input (saubere Version ohne blur-Hack) ────────────── */
+.sidebar-rename-input {
+	font-size: 12px;
+	font-family: inherit;
+	background: var(--c-surface-2);
+	border: 1.5px solid var(--c-accent);
+	border-radius: var(--radius-micro);
+	color: var(--c-text);
+	padding: 1px 6px;
+	outline: none;
+	min-width: 80px;
+	max-width: 150px;
+	width: 100%;
+	box-sizing: border-box;
+	/* Kein transition — sofortige visuelle Reaktion */
+}
+
+.sidebar-rename-input:focus {
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-accent) 25%, transparent);
+}
+
+/* ── Änderung 2 & 3: Find & Replace Bar ─────────────────────────────────── */
+
+/* Problem 4: Toolbar-Container nimmt volle Breite, wrapping verhindert */
+.toolbar {
+	flex-wrap: nowrap;
+	min-width: max-content;
+}
+
+.toolbar-fr-bar {
+	display: flex;
+	align-items: center;
+	/* Änderung 3: feste Breite für nebeneinander-Layout */
+	flex: 0 0 auto;
+}
+
+.fr-bar {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	white-space: nowrap;
+}
+
+.fr-bar--disabled {
+	opacity: 0.4;
+	pointer-events: none;
+}
+
+/* Änderung 3: Zwei Spalten nebeneinander */
+.fr-col {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+
+.fr-search-col {
+	flex: 0 0 auto;
+}
+
+.fr-replace-col {
+	flex: 0 0 auto;
+}
+
+/* Trennlinie zwischen Such- und Ersetzbereich */
+.fr-divider {
+	width: 1px;
+	height: 20px;
+	background: var(--c-border, var(--border-color));
+	margin: 0 4px;
+	flex-shrink: 0;
+}
+
+/* Input wrapper */
+.fr-input-wrap {
+	position: relative;
+	display: flex;
+	align-items: center;
+}
+
+.fr-input {
+	width: 140px;
+	height: 24px;
+	padding: 0 44px 0 8px;
+	font-size: 12px;
+	font-family: inherit;
+	background: var(--c-surface-2, var(--bg-warm));
+	border: 1px solid var(--c-border, var(--border-color));
+	border-radius: var(--radius-micro, 4px);
+	color: var(--c-text, var(--text-primary));
+	outline: none;
+	box-sizing: border-box;
+	transition: border-color 0.15s;
+}
+
+.fr-input:focus {
+	border-color: var(--c-accent, var(--color-accent));
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-accent, var(--color-accent)) 18%, transparent);
+}
+
+.fr-input--error {
+	border-color: #ef4444 !important;
+	background: color-mix(in srgb, #ef4444 8%, transparent);
+}
+
+/* Match-Count Badge — über dem Input positioniert */
+.fr-match-count {
+	position: absolute;
+	right: 6px;
+	top: 50%;
+	transform: translateY(-50%);
+	font-size: 10px;
+	color: var(--c-text-dim, var(--text-muted));
+	white-space: nowrap;
+	pointer-events: none;
+	line-height: 1;
+}
+
+/* Option-Buttons */
+.fr-opts {
+	display: flex;
+	gap: 1px;
+	flex-shrink: 0;
+}
+
+.fr-opt-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	background: none;
+	border: 1px solid transparent;
+	border-radius: var(--radius-micro, 4px);
+	cursor: pointer;
+	color: var(--c-text-muted, var(--text-muted));
+	transition:
+		color 0.12s,
+		background 0.12s,
+		border-color 0.12s;
+	flex-shrink: 0;
+}
+
+.fr-opt-btn:hover {
+	color: var(--c-text, var(--text-primary));
+	background: var(--c-surface-3, var(--bg-warm));
+}
+
+.fr-opt-btn--active {
+	color: var(--c-accent, var(--color-accent));
+	background: color-mix(in srgb, var(--c-accent, var(--color-accent)) 12%, transparent);
+	border-color: color-mix(in srgb, var(--c-accent, var(--color-accent)) 30%, transparent);
+}
+
+/* Navigation & Replace Buttons */
+.fr-nav {
+	display: flex;
+	gap: 1px;
+	flex-shrink: 0;
+}
+
+.fr-nav-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	background: none;
+	border: 1px solid var(--c-border, var(--border-color));
+	border-radius: var(--radius-micro, 4px);
+	cursor: pointer;
+	color: var(--c-text-muted, var(--text-muted));
+	transition:
+		color 0.12s,
+		background 0.12s;
+	flex-shrink: 0;
+}
+
+.fr-nav-btn:hover:not(:disabled) {
+	color: var(--c-text, var(--text-primary));
+	background: var(--c-surface-3, var(--bg-warm));
+}
+
+.fr-nav-btn:disabled {
+	opacity: 0.3;
+	cursor: not-allowed;
+}
+
+.fr-replace-btn {
+	color: var(--c-accent, var(--color-accent));
+	border-color: color-mix(in srgb, var(--c-accent, var(--color-accent)) 35%, transparent);
+}
+
+.fr-replace-btn:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--c-accent, var(--color-accent)) 12%, transparent);
+}
+
+/* ── Änderung 2: Treffer-Highlighting in AG Grid ─────────────────────────── */
+
+/* Aktiver Treffer — orange/gelb, deutlich sichtbar */
+.ag-row.row-find-match {
+	background-color: rgba(245, 158, 11, 0.18) !important;
+	outline: 1px solid rgba(245, 158, 11, 0.55);
+	outline-offset: -1px;
+}
+
+/* Alle anderen Treffer — dezentes Grün */
+.ag-row.row-has-match {
+	background-color: rgba(34, 197, 94, 0.1) !important;
+	outline: 1px solid rgba(34, 197, 94, 0.3);
+	outline-offset: -1px;
+}
+
+/* Dark Mode Anpassungen */
+[data-theme='dark'] .ag-row.row-find-match {
+	background-color: rgba(245, 158, 11, 0.22) !important;
+	outline-color: rgba(245, 158, 11, 0.65);
+}
+
+[data-theme='dark'] .ag-row.row-has-match {
+	background-color: rgba(34, 197, 94, 0.13) !important;
+	outline-color: rgba(34, 197, 94, 0.4);
+}
+
+/* ── Problem 2: Mobile / Schmale Viewports — Toolbar scrollt horizontal ──── */
+/* Handled in .toolbar rule above via overflow-x:auto + justify-content:flex-start */
+
+@media (max-width: 768px) {
+	.fr-input {
+		width: 110px;
+	}
+	.toolbar-schema-name {
+		max-width: 100px;
+	}
+}
+
+@media (max-width: 480px) {
+	.fr-input {
+		width: 90px;
+	}
+	.toolbar-schema-name {
+		max-width: 70px;
+	}
+}
+/* Änderung 2: Treffer-Highlighting in AG Grid ─────────────────────────── */
+
+/* Aktiver Treffer — orange/gelb, deutlich sichtbar */
+.ag-row.row-find-match {
+	background-color: rgba(245, 158, 11, 0.18) !important;
+	outline: 1px solid rgba(245, 158, 11, 0.55);
+	outline-offset: -1px;
+}
+
+/* Alle anderen Treffer — dezentes Grün */
+.ag-row.row-has-match {
+	background-color: rgba(34, 197, 94, 0.1) !important;
+	outline: 1px solid rgba(34, 197, 94, 0.3);
+	outline-offset: -1px;
+}
+
+/* Dark Mode Anpassungen */
+[data-theme='dark'] .ag-row.row-find-match {
+	background-color: rgba(245, 158, 11, 0.22) !important;
+	outline-color: rgba(245, 158, 11, 0.65);
+}
+
+[data-theme='dark'] .ag-row.row-has-match {
+	background-color: rgba(34, 197, 94, 0.13) !important;
+	outline-color: rgba(34, 197, 94, 0.4);
+}
+
+/* ── Problem 2: Mobile / Schmale Viewports — Toolbar scrollt horizontal ──── */
+/* Handled in .toolbar rule above via overflow-x:auto + justify-content:flex-start */
+
+@media (max-width: 768px) {
+	.fr-input {
+		width: 110px;
+	}
+	.toolbar-schema-name {
+		max-width: 100px;
+	}
+}
+
+@media (max-width: 480px) {
+	.fr-input {
+		width: 90px;
+	}
+	.toolbar-schema-name {
+		max-width: 70px;
+	}
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PATCH v6 — Ä1-6 + Problem 5
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Problem 3/5: Toolbar Mobile Scrolling via toolbar-inner ────── */
+/*
+   Strategie: .toolbar behält feste Höhe und ist der sichtbare Rahmen.
+   .toolbar-inner ist der scrollbare Container darin.
+   Das umgeht das Problem, dass overflow:hidden auf .app/.main
+   den overflow-x der Toolbar clippt.
+*/
+.toolbar {
+	overflow: visible !important; /* kein clip mehr */
+	padding: 0; /* inner übernimmt padding */
+}
+
+.toolbar-inner {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	height: var(--toolbar-h);
+	padding: 0 14px;
+	overflow-x: auto;
+	overflow-y: hidden;
+	-webkit-overflow-scrolling: touch;
+	touch-action: pan-x;
+	overscroll-behavior-x: contain;
+	scrollbar-width: none;
+	box-sizing: border-box;
+}
+
+.toolbar-inner::-webkit-scrollbar {
+	display: none;
+}
+
+.toolbar-left,
+.toolbar-right {
+	flex-shrink: 0 !important;
+	min-width: max-content !important;
+}
+
+/* ── Ä3: Klassen-Map Code-Block ─────────────────────────────────── */
+.cm-code {
+	margin: 0;
+	padding: 12px 14px;
+	background: var(--c-surface-3, var(--bg-warm));
+	border: 1px solid var(--c-border, var(--border-color));
+	border-radius: var(--radius-micro, 4px);
+	font-family: var(--font-mono, monospace);
+	font-size: 11.5px;
+	line-height: 1.65;
+	color: var(--c-text, var(--text-primary));
+	max-height: 200px;
+	overflow-y: auto;
+	white-space: pre;
+	scrollbar-width: thin;
+}
+
+/* ── Ä6: Combobox ───────────────────────────────────────────────── */
+.cb-wrap {
+	position: relative;
+	width: 100%;
+}
+
+.cb-input {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.cb-dropdown {
+	position: absolute;
+	top: calc(100% + 3px);
+	left: 0;
+	right: 0;
+	background: var(--c-surface-2, var(--bg-surface));
+	border: 1px solid var(--c-accent, var(--color-accent));
+	border-radius: var(--radius-micro, 4px);
+	max-height: 220px;
+	overflow-y: auto;
+	z-index: 10000;
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+	scrollbar-width: thin;
+}
+
+.cb-option {
+	padding: 6px 12px;
+	font-size: 12.5px;
+	cursor: pointer;
+	color: var(--c-text, var(--text-primary));
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	transition: background 0.08s;
+}
+
+.cb-option:hover,
+.cb-option--active {
+	background: color-mix(in srgb, var(--c-accent, var(--color-accent)) 14%, transparent);
+	color: var(--c-accent, var(--color-accent));
+}
+
+.cb-hl {
+	background: none;
+	color: var(--c-accent, var(--color-accent));
+	font-weight: 600;
+}
+
+.cb-empty {
+	padding: 8px 12px;
+	font-size: 12px;
+	color: var(--c-text-dim, var(--text-muted));
+	text-align: center;
+}
+
+/* ── Ä4: Cell-level Find-Highlight ─────────────────────────────── */
+/* Row-classes entfernt — Zell-Highlight läuft über cellStyle */
+.ag-row.row-find-match,
+.ag-row.row-has-match {
+	/* Kein Hintergrund mehr auf Zeilenebene */
+	background-color: unset;
+	outline: none;
+}

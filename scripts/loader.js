@@ -17,6 +17,8 @@
     import './ui/modals/new-class.js';
     import './ui/modals/database-modal.js';
     import './ui/modals/batch-modal.js';
+    import './ui/modals/virtual-classes-dialog.js';
+    import './ui/modals/class-map-dialog.js';
 
     // Restore theme before first paint
     restoreTheme();
@@ -52,7 +54,6 @@
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const text = await res.text();
           const { rows } = parseCsv(text);
-          // Assign internal IDs
           const withIds = rows.map((r, i) => ({
             ...r,
             _id: `${schema.id}_${i}_${Date.now()}`,
@@ -62,7 +63,6 @@
           await touchModified(schema.id, withDups.length);
         } catch (err) {
           console.warn(`[migration] Konnte ${schema.file} nicht laden:`, err.message);
-          // Store empty array so schema is registered
           await db.set('tables', schema.id, []);
         }
         done++;
@@ -83,7 +83,6 @@
         setProgress(100, 'Bereit!');
       } else {
         setProgress(50, 'Daten laden …');
-        // Quick validation pass
         await new Promise(r => setTimeout(r, 100));
         setProgress(100, 'Bereit!');
       }
@@ -92,7 +91,6 @@
       let schemas = [...DEFAULT_SCHEMAS];
       try {
         const customSchemas = (await db.get('schemas', 'custom')) ?? [];
-        // Migrate: old schemas stored with group:'custom' → correct type-based group
         const migratedCustom = customSchemas.map(s => ({
           ...s,
           group: s.type === 'adjektiv' ? 'adjektiv' : s.type === 'defektivum' ? 'defektiv' : 'nomen',
@@ -102,6 +100,16 @@
         schemas = [...schemas, ...migratedCustom];
       } catch (_) { }
       AppStore.set('schemas', schemas);
+
+      // Ä1: Virtuelle Klassen (3 getrennte Keys) aus DB laden
+      try {
+        const vcN = (await db.get('meta', 'virtualClassesNomen'))     ?? '';
+        const vcD = (await db.get('meta', 'virtualClassesDefektiva')) ?? '';
+        const vcA = (await db.get('meta', 'virtualClassesAdjektive')) ?? '';
+        AppStore.set('virtualClassesNomen',     vcN);
+        AppStore.set('virtualClassesDefektiva', vcD);
+        AppStore.set('virtualClassesAdjektive', vcA);
+      } catch (_) { }
 
       // Seed createdAt metadata for all schemas (no-op if already set)
       for (const schema of schemas) {
@@ -121,6 +129,13 @@
 
       hideOverlay();
     }
+
+    // editor:toast relay
+    document.addEventListener('editor:toast', (e) => {
+      import('./ui/modals/modal-base.js').then(({ showToast }) => {
+        showToast(e.detail.message, e.detail.type ?? 'info');
+      }).catch(() => {});
+    });
 
     boot().catch((err) => {
       console.error('[boot] Fehler:', err);

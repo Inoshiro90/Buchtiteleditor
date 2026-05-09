@@ -131,8 +131,9 @@ export class DeclinationRuleCellEditor extends SelectCellEditor {
       starkeDeklination:    'starkeDeklination (S1–S6)',
       schwacheDeklination:  'schwacheDeklination (W1, W2)',
       gemischteDeklination: 'gemischteDeklination (W3, W4)',
-      fremdWort: 'fremdWort',
-      eigenName: 'Eigenname'
+      fremdWort: 'Fremdwort',
+      eigenName: 'EigenName',
+      substantiviertesAdjektiv: 'Substantiviertes Adjektiv'
     };
     return allowed.map(r => ({ value: r, label: labels[r] ?? r }));
   }

@@ -1,7 +1,11 @@
 // editor/ui/modals/token-insert.js
-// Token-Einfügedialog — NOM / ADJ / PRO / ART / NAM
+// Token-Einfügedialog — NOM / ADJ / PRO / ART / NAM / COM / FUN / DEF
+//
+// Änderung 1: Virtuelle Klassen in Variablenliste eingebunden
+// Änderung 2: Nur Variablen (Klasse1…3) in Lemma-Selects — keine reinen Klassennamen mehr
 
 import { openModal } from './modal-base.js';
+import { createCombobox } from '../combobox.js';
 import { insertTokenAtCursor } from '../cell-dsl.js';
 import { AppStore } from '../../store/AppStore.js';
 
@@ -23,26 +27,46 @@ function row(label, control) {
   return `<div class="form-group"><label class="form-label">${label}</label>${control}</div>`;
 }
 
-// ── Lemma list ─────────────────────────────────────────────────────────────
-function getNomenLemmas() {
-  const schemas = AppStore.get('schemas') ?? [];
-  return schemas.filter(s => s.type === 'nomen').map(s => s.lemma ?? s.id);
-}
-function getAdjLemmas() {
-  const schemas = AppStore.get('schemas') ?? [];
-  return schemas.filter(s => s.type === 'adjektiv').map(s => s.lemma ?? s.id);
+// ── Variable list ──────────────────────────────────────────────────────────
+/**
+ * Änderung 2: Gibt ausschließlich Variablen (Base1, Base2, Base3) zurück —
+ * keine reinen Klassennamen. Schließt sowohl Schema-Lemmas als auch
+ * virtuelle Klassen (Änderung 1) ein.
+ */
+function getAllNomenVariables() {
+  const schemas   = AppStore.get('schemas') ?? [];
+  const vcRaw     = AppStore.get('virtualClassesNomen') ?? '';
+  const vcNames   = vcRaw.split('\n').map(s => s.trim()).filter(Boolean);
+  const existing  = new Set(schemas.filter(s => s.type === 'nomen').map(s => s.lemma ?? s.id));
+  const bases     = [
+    ...schemas.filter(s => s.type === 'nomen').map(s => s.lemma ?? s.id),
+    ...vcNames.filter(n => !existing.has(n)),
+  ];
+  return bases.flatMap(base => [1, 2, 3].map(n => `${base}${n}`));
 }
 
-// Variable names Volk1…Ort3
-const VARIABLE_BASES = [
-  'Volk','Klasse','Kreaturtyp','Beruf','Waffe','Rüstung','Tier',
-  'Gebäude','Ereignis','Metall','Terrain','Religioeses','Ort',
-];
-function getVariables(base) {
-  return [1,2,3].map(n => `${base}${n}`);
+function getAllAdjVariables() {
+  const schemas  = AppStore.get('schemas') ?? [];
+  const vcRaw    = AppStore.get('virtualClassesAdjektive') ?? '';
+  const vcNames  = vcRaw.split('\n').map(s => s.trim()).filter(Boolean);
+  const existing = new Set(schemas.filter(s => s.type === 'adjektiv').map(s => s.lemma ?? s.id));
+  const bases    = [
+    ...schemas.filter(s => s.type === 'adjektiv').map(s => s.lemma ?? s.id),
+    ...vcNames.filter(n => !existing.has(n)),
+  ];
+  return bases.flatMap(base => [1, 2, 3].map(n => `${base}${n}`));
 }
-function getAllVariables() {
-  return VARIABLE_BASES.flatMap(b => getVariables(b));
+
+function getAllDefVariables() {
+  const schemas  = AppStore.get('schemas') ?? [];
+  const vcRaw    = AppStore.get('virtualClassesDefektiva') ?? '';
+  const vcNames  = vcRaw.split('\n').map(s => s.trim()).filter(Boolean);
+  const existing = new Set(schemas.filter(s => s.type === 'defektivum').map(s => s.lemma ?? s.id));
+  const bases    = [
+    ...schemas.filter(s => s.type === 'defektivum').map(s => s.lemma ?? s.id),
+    ...vcNames.filter(n => !existing.has(n)),
+  ];
+  return bases.flatMap(base => [1, 2, 3].map(n => `${base}${n}`));
 }
 
 // ── Live preview updater ───────────────────────────────────────────────────
@@ -51,12 +75,15 @@ function updatePreview(previewId, getToken) {
   if (el) el.textContent = getToken();
 }
 
-// ── NOM Dialog ────────────────────────────────────────────────────────────
+// ── NOM Dialog ─────────────────────────────────────────────────────────────
+// Ä2: Numerus kann 'def' sein → Defektiva-Variable bestimmt Numerus
+// Ä6: Combobox statt Select für Variable
+
 function buildNOMToken() {
-  const lemma   = sel('nom-lemma')?.value ?? '';
-  const numerus = sel('nom-numerus')?.value ?? 'sgl';
-  const kasus   = sel('nom-kasus')?.value ?? 'nom';
-  const art     = sel('nom-art')?.value ?? '-';
+  const lemma     = sel('nom-lemma-hidden')?.value ?? '';
+  const numerus   = sel('nom-numerus')?.value ?? 'sgl';
+  const kasus     = sel('nom-kasus')?.value ?? 'nom';
+  const art       = sel('nom-art')?.value ?? '-';
   const renderArt = sel('nom-render-art')?.checked;
 
   if (!lemma) return `{NOM:?}`;
@@ -67,18 +94,16 @@ function buildNOMToken() {
 }
 
 export function openNOMDialog() {
-  const nomenLemmas = [...getNomenLemmas(), ...getAllVariables()];
+  const nomVars = getAllNomenVariables();
+
   const bodyHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div style="grid-column:1/-1">
-        ${row('Lemma / Variable', `<select class="form-select" id="nom-lemma">
-          <optgroup label="Klassen">${nomenLemmas.filter(l => !/[0-9]$/.test(l)).map(l => `<option value="${l}">${l}</option>`).join('')}</optgroup>
-          <optgroup label="Variablen">${nomenLemmas.filter(l => /[0-9]$/.test(l)).map(l => `<option value="${l}">${l}</option>`).join('')}</optgroup>
-        </select>`)}
+        ${row('Variable', `<div id="nom-cb-wrap"></div><input type="hidden" id="nom-lemma-hidden" />`)}
       </div>
       <div>${row('Numerus', makeSelect('nom-numerus', ['sgl','plu'], ['Singular','Plural']))}</div>
-      <div>${row('Kasus',   makeSelect('nom-kasus',   ['nom','gen','dat','akk'], ['Nominativ','Genitiv','Dativ','Akkusativ']))}</div>
-      <div>${row('Artikel', makeSelect('nom-art',     ['-','def','ind','neg'], ['keiner','bestimmt','unbestimmt','negativ']))}</div>
+      <div>${row('Kasus', makeSelect('nom-kasus', ['nom','gen','dat','akk'], ['Nominativ','Genitiv','Dativ','Akkusativ']))}</div>
+      <div>${row('Artikel', makeSelect('nom-art', ['-','def','ind','neg'], ['keiner','bestimmt','unbestimmt','negativ']))}</div>
       <div style="display:flex;align-items:center;gap:8px;padding-top:22px;">
         <input type="checkbox" id="nom-render-art" style="accent-color:var(--c-accent)">
         <label for="nom-render-art" style="color:var(--c-text-muted);font-size:12px">Artikel rendern (|art)</label>
@@ -88,23 +113,26 @@ export function openNOMDialog() {
   `;
 
   openModal({
-    id: 'modal-nom',
-    title: 'NOM-Token einfügen',
-    bodyHTML,
-    width: '480px',
+    id: 'modal-nom', title: 'NOM-Token einfügen', bodyHTML, width: '500px',
     buttons: [
       { label: 'Abbrechen', cls: 'btn-secondary', action: 'close' },
       { label: 'Einfügen', cls: 'btn-primary', action: (close) => {
-        insertTokenAtCursor(buildNOMToken());
-        close();
+        insertTokenAtCursor(buildNOMToken()); close();
       }},
     ],
-    onOpen: () => {
-      updatePreview('nom-preview', buildNOMToken);
-      ['nom-lemma','nom-numerus','nom-kasus','nom-art','nom-render-art'].forEach(id => {
-        sel(id)?.addEventListener('change', () => updatePreview('nom-preview', buildNOMToken));
-        sel(id)?.addEventListener('input',  () => updatePreview('nom-preview', buildNOMToken));
+    onOpen: (dialog) => {
+      const upd = () => updatePreview('nom-preview', buildNOMToken);
+      const hidden = dialog.querySelector('#nom-lemma-hidden');
+      createCombobox({
+        container: dialog.querySelector('#nom-cb-wrap'), items: nomVars,
+        value: nomVars[0] ?? '', placeholder: 'Variable suchen…', id: 'nom-cb',
+        onChange: v => { hidden.value = v; upd(); },
       });
+      hidden.value = nomVars[0] ?? '';
+      ['nom-numerus','nom-kasus','nom-art','nom-render-art'].forEach(id => {
+        sel(id)?.addEventListener('change', upd);
+      });
+      upd();
     },
   });
 }
@@ -113,63 +141,182 @@ export function openNOMDialog() {
 function buildADJToken() {
   const lemma      = sel('adj-lemma')?.value ?? '';
   const numerus    = sel('adj-numerus')?.value ?? 'sgl';
+  const defNumVar  = sel('adj-def-num-hidden')?.value ?? '';
   const kasus      = sel('adj-kasus')?.value ?? 'nom';
   const genus      = sel('adj-genus')?.value ?? 'msk';
+  const genusVar   = sel('adj-genus-var-hidden')?.value ?? '';
   const art        = sel('adj-art')?.value ?? '-';
   const steigerung = sel('adj-steigerung')?.value ?? 'pos';
   if (!lemma) return `{ADJ:?}`;
-  return `{ADJ:${lemma}|${numerus}|${kasus}|${genus}|${art}|${steigerung}}`;
+  const numPart    = (numerus === 'def' && defNumVar) ? `def:${defNumVar}` : numerus;
+  const genusPart  = (genus === 'var' && genusVar)    ? genusVar           : genus;
+  return `{ADJ:${lemma}|${numPart}|${kasus}|${genusPart}|${art}|${steigerung}}`;
 }
 
 export function openADJDialog() {
-  const adjLemmas = [...getAdjLemmas()];
+  const adjVarsAll = getAllAdjVariables();
+  const defVars    = getAllDefVariables();
+  // Ä5: Genus-Variablen = Nomen + Defektiva
+  const genusVars  = [...getAllNomenVariables(), ...getAllDefVariables()];
+
   const bodyHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div style="grid-column:1/-1">
-        ${row('Lemma', `<select class="form-select" id="adj-lemma">
-          ${adjLemmas.map(l => `<option value="${l}">${l}</option>`).join('')}
-        </select>`)}
+        ${row('Variable', `<div id="adj-cb-wrap"></div><input type="hidden" id="adj-lemma" />`)}
       </div>
-      <div>${row('Numerus',    makeSelect('adj-numerus',    ['sgl','plu'], ['Singular','Plural']))}</div>
-      <div>${row('Kasus',      makeSelect('adj-kasus',      ['nom','gen','dat','akk']))}</div>
-      <div>${row('Genus',      makeSelect('adj-genus',      ['msk','fem','neu'], ['Maskulinum','Femininum','Neutrum']))}</div>
-      <div>${row('Artikel',    makeSelect('adj-art',        ['-','def','ind','neg'], ['keiner','bestimmt','unbestimmt','negativ']))}</div>
+
+      <!-- P4: Numerus mit Defektivum-Option -->
+      <div>${row('Numerus', makeSelect('adj-numerus', ['sgl','plu','def'], ['Singular','Plural','Defektivum (Variable)']))}</div>
+      <div id="adj-def-num-wrap" style="display:none">
+        ${row('Defektiva-Variable', `<div id="adj-def-num-cb-wrap"></div><input type="hidden" id="adj-def-num-hidden" />`)}
+      </div>
+
+      <div>${row('Kasus', makeSelect('adj-kasus', ['nom','gen','dat','akk']))}</div>
+
+      <!-- Ä5: Genus mit Variablen-Option -->
+      <div>${row('Genus', makeSelect('adj-genus', ['msk','fem','neu','var'], ['Maskulinum','Femininum','Neutrum','Variable (Nomen/Def)']))}</div>
+      <div id="adj-genus-var-wrap" style="display:none">
+        ${row('Genus-Variable', `<div id="adj-genus-var-cb-wrap"></div><input type="hidden" id="adj-genus-var-hidden" />`)}
+      </div>
+
+      <div>${row('Artikel', makeSelect('adj-art', ['-','def','ind','neg'], ['keiner','bestimmt','unbestimmt','negativ']))}</div>
       <div style="grid-column:1/-1">${row('Steigerung', makeSelect('adj-steigerung', ['pos','kom','sup'], ['Positiv','Komparativ','Superlativ']))}</div>
     </div>
     <div style="margin-top:16px;padding:10px 14px;background:var(--c-surface-3);border-radius:var(--radius);font-family:var(--font-mono);font-size:13px;color:var(--c-dsl-adj)" id="adj-preview"></div>
   `;
 
   openModal({
-    id: 'modal-adj', title: 'ADJ-Token einfügen', bodyHTML, width: '480px',
+    id: 'modal-adj', title: 'ADJ-Token einfügen', bodyHTML, width: '500px',
     buttons: [
       { label: 'Abbrechen', cls: 'btn-secondary', action: 'close' },
       { label: 'Einfügen', cls: 'btn-primary', action: (close) => { insertTokenAtCursor(buildADJToken()); close(); }},
     ],
-    onOpen: () => {
-      updatePreview('adj-preview', buildADJToken);
-      ['adj-lemma','adj-numerus','adj-kasus','adj-genus','adj-art','adj-steigerung'].forEach(id => {
-        sel(id)?.addEventListener('change', () => updatePreview('adj-preview', buildADJToken));
+    onOpen: (dialog) => {
+      const upd = () => updatePreview('adj-preview', buildADJToken);
+
+      // Variable (Lemma)
+      const lemmaHidden = dialog.querySelector('#adj-lemma');
+      createCombobox({
+        container: dialog.querySelector('#adj-cb-wrap'), items: adjVarsAll,
+        value: adjVarsAll[0] ?? '', placeholder: 'Adj-Variable suchen…', id: 'adj-cb',
+        onChange: v => { lemmaHidden.value = v; upd(); },
       });
+      lemmaHidden.value = adjVarsAll[0] ?? '';
+
+      // P4: Def-Numerus Combobox + Toggle
+      const defNumHidden = dialog.querySelector('#adj-def-num-hidden');
+      const defNumWrap   = dialog.querySelector('#adj-def-num-wrap');
+      createCombobox({
+        container: dialog.querySelector('#adj-def-num-cb-wrap'), items: defVars,
+        value: defVars[0] ?? '', placeholder: 'Defektiva-Variable…', id: 'adj-def-num-cb',
+        onChange: v => { defNumHidden.value = v; upd(); },
+      });
+      defNumHidden.value = defVars[0] ?? '';
+
+      const numSel = sel('adj-numerus');
+      const toggleDefNum = () => {
+        const isDef = numSel.value === 'def';
+        defNumWrap.style.display    = isDef ? '' : 'none';
+        defNumWrap.style.gridColumn = isDef ? '1/-1' : '';
+        upd();
+      };
+      numSel.addEventListener('change', toggleDefNum);
+
+      // Ä5: Genus-Variable Combobox + Toggle
+      const genusVarHidden = dialog.querySelector('#adj-genus-var-hidden');
+      const genusVarWrap   = dialog.querySelector('#adj-genus-var-wrap');
+      createCombobox({
+        container: dialog.querySelector('#adj-genus-var-cb-wrap'), items: genusVars,
+        value: genusVars[0] ?? '', placeholder: 'Nomen-/Def-Variable…', id: 'adj-genus-var-cb',
+        onChange: v => { genusVarHidden.value = v; upd(); },
+      });
+      genusVarHidden.value = genusVars[0] ?? '';
+
+      const genusSel = sel('adj-genus');
+      const toggleGenusVar = () => {
+        const isVar = genusSel.value === 'var';
+        genusVarWrap.style.display    = isVar ? '' : 'none';
+        genusVarWrap.style.gridColumn = isVar ? '1/-1' : '';
+        upd();
+      };
+      genusSel.addEventListener('change', toggleGenusVar);
+
+      ['adj-kasus','adj-art','adj-steigerung'].forEach(id => {
+        sel(id)?.addEventListener('change', upd);
+      });
+      upd();
     },
   });
 }
 
-// ── PRO Dialog ────────────────────────────────────────────────────────────
+// ── PRO Dialog ─────────────────────────────────────────────────────────────
+//
+// Erweiterungen:
+//   • Numerus-Variable (Defektiva) — wie ADJ
+//   • Genus-Variable (Nomen/Defektiva) — wie ADJ
+//   • Ziel-Genus + Ziel-Numerus für Possessivpronomen (poss) und pers/p3
+//     → beschreibt das Bezugsnomen (z.B. "mein Fahrrad" = Ziel: neu/sgl)
+//
+// Token-Beispiele:
+//   {PRO:pers|p3|sgl|nom|msk}          — er
+//   {PRO:poss|p1|sgl|nom|neu|sgl}      — mein (Fahrrad, Neutrum Sg)
+//   {PRO:poss|p1|sgl|nom|fem|plu}      — meine (Häute, Femininum Pl)
+//   {PRO:poss|p1|sgl|nom|Tier1|def:Gebirge1} — Variable Ziel-Genus + Def-Ziel-Num
+
 function buildPROToken() {
-  const subtype = sel('pro-subtype')?.value ?? 'pers';
-  const person  = sel('pro-person')?.value ?? 'p1';
-  const numerus = sel('pro-numerus')?.value ?? 'sgl';
-  const kasus   = sel('pro-kasus')?.value ?? 'nom';
-  const genus   = sel('pro-genus')?.value ?? 'msk';
-  const stem    = sel('pro-stem')?.value ?? '';
-  let flags = `|${numerus}|${kasus}`;
+  const subtype   = sel('pro-subtype')?.value ?? 'pers';
+  const person    = sel('pro-person')?.value ?? 'p1';
+  // Possessor-Numerus
+  const numerus   = sel('pro-numerus')?.value ?? 'sgl';
+  const defNumVar = sel('pro-def-num-hidden')?.value ?? '';
+  const numPart   = (numerus === 'def' && defNumVar) ? `def:${defNumVar}` : numerus;
+  const kasus     = sel('pro-kasus')?.value ?? 'nom';
+  // Genus (für pers/p3, dem, rel)
+  const genus     = sel('pro-genus')?.value ?? 'msk';
+  const genusVar  = sel('pro-genus-var-hidden')?.value ?? '';
+  const genusPart = (genus === 'var' && genusVar) ? genusVar : genus;
+  const stem      = sel('pro-stem')?.value ?? '';
+  // Ziel-Genus + Ziel-Numerus (für poss, optional für pers/p3)
+  const zGenus    = sel('pro-ziel-genus')?.value ?? 'msk';
+  const zGenusVar = sel('pro-ziel-genus-var-hidden')?.value ?? '';
+  const zGenusPart= (zGenus === 'var' && zGenusVar) ? zGenusVar : zGenus;
+  const zNumerus  = sel('pro-ziel-numerus')?.value ?? 'sgl';
+  const zDefVar   = sel('pro-ziel-def-hidden')?.value ?? '';
+  const zNumPart  = (zNumerus === 'def' && zDefVar) ? `def:${zDefVar}` : zNumerus;
+
+  let flags = `|${numPart}|${kasus}`;
   if (['pers','refl','poss'].includes(subtype)) flags = `|${person}` + flags;
-  if (['dem','quant'].includes(subtype) && stem) flags += `|${stem}`;
-  else if (!['refl'].includes(subtype)) flags += `|${genus}`;
+
+  if (subtype === 'poss') {
+    // Possessor-Genus (nur bei p3 relevant: sein- vs. ihr-)
+    const possGenUS  = sel('pro-poss-genus')?.value ?? 'msk';
+    const possGenVar = sel('pro-poss-genus-var-hidden')?.value ?? '';
+    const possGenusPart = (possGenUS === 'var' && possGenVar) ? possGenVar : possGenUS;
+    const p3GenusFlag = person === 'p3' ? `|${possGenusPart}` : '';
+    // Format: |person|[possessor-genus wenn p3]|possessor-num|kasus|ziel-genus|ziel-num
+    flags = `|${person}${p3GenusFlag}|${numPart}|${kasus}|${zGenusPart}|${zNumPart}`;
+  } else if (subtype === 'pers' && person === 'p3') {
+    // 3. Person: Genus des Subjekts
+    flags = `|${person}|${numPart}|${kasus}|${genusPart}`;
+  } else if (['dem','quant'].includes(subtype)) {
+    flags = `|${numPart}|${kasus}|${genusPart}`;
+    if (stem) flags += `|${stem}`;
+  } else if (subtype === 'rel') {
+    flags = `|${numPart}|${kasus}|${genusPart}`;
+  } else if (subtype === 'refl') {
+    flags = `|${person}|${numPart}|${kasus}`;
+  } else {
+    // pers p1/p2: kein Genus
+    flags = `|${person}|${numPart}|${kasus}`;
+  }
+
   return `{PRO:${subtype}${flags}}`;
 }
 
 export function openPRODialog() {
+  const defVars   = getAllDefVariables();
+  const genusVars = [...getAllNomenVariables(), ...getAllDefVariables()];
+
   const bodyHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div style="grid-column:1/-1">
@@ -178,57 +325,284 @@ export function openPRODialog() {
           ['Personalpronomen','Reflexivpronomen','Possessivpronomen','Demonstrativpronomen','Relativpronomen','Quantorpronomen']
         ))}
       </div>
-      <div>${row('Person',  makeSelect('pro-person',  ['p1','p2','p3','p2form'], ['1. Person','2. Person','3. Person','Formell (Sie)']))}</div>
-      <div>${row('Numerus', makeSelect('pro-numerus', ['sgl','plu'], ['Singular','Plural']))}</div>
-      <div>${row('Kasus',   makeSelect('pro-kasus',   ['nom','gen','dat','akk']))}</div>
-      <div>${row('Genus',   makeSelect('pro-genus',   ['msk','fem','neu'], ['Maskulinum','Femininum','Neutrum']))}</div>
-      <div style="grid-column:1/-1">${row('Stem (für dem/quant)', `<select class="form-select" id="pro-stem">
-        <option value="">—</option>
-        <optgroup label="Demonstrativ">
-          <option value="dieser">dieser</option><option value="jener">jener</option>
-          <option value="derjenige">derjenige</option><option value="derselbe">derselbe</option>
-        </optgroup>
-        <optgroup label="Quantor">
-          <option value="alle">alle</option><option value="beide">beide</option>
-          <option value="einige">einige</option><option value="viele">viele</option>
-          <option value="wenige">wenige</option><option value="jemand">jemand</option>
-          <option value="niemand">niemand</option>
-        </optgroup>
-      </select>`)}</div>
+
+      <!-- Person (für pers/refl/poss) -->
+      <div id="pro-person-wrap">
+        ${row('Person', makeSelect('pro-person', ['p1','p2','p3','p2form'], ['1. Person','2. Person','3. Person','Formell (Sie)']))}
+      </div>
+
+      <!-- Possessor-Numerus + Variable -->
+      <div>${row('Numerus (Possessor)', makeSelect('pro-numerus', ['sgl','plu','def'], ['Singular','Plural','Defektiva (Variable)']))}</div>
+      <div id="pro-def-num-wrap" style="display:none">
+        ${row('Defektiva-Variable', `<div id="pro-def-num-cb-wrap"></div><input type="hidden" id="pro-def-num-hidden" />`)}
+      </div>
+
+      <div>${row('Kasus', makeSelect('pro-kasus', ['nom','gen','dat','akk']))}</div>
+
+      <!-- Genus (für pers/p3, dem, rel) + Variable -->
+      <div id="pro-genus-wrap">
+        ${row('Genus', makeSelect('pro-genus', ['msk','fem','neu','var'], ['Maskulinum','Femininum','Neutrum','Variable']))}
+      </div>
+      <div id="pro-genus-var-wrap" style="display:none">
+        ${row('Genus-Variable', `<div id="pro-genus-var-cb-wrap"></div><input type="hidden" id="pro-genus-var-hidden" />`)}
+      </div>
+
+      <!-- Stem (für dem/quant) -->
+      <div id="pro-stem-wrap" style="grid-column:1/-1;display:none">
+        ${row('Stamm (für dem/quant)', `<select class="form-select" id="pro-stem">
+          <option value="">—</option>
+          <optgroup label="Demonstrativ">
+            <option value="dieser">dieser</option><option value="jener">jener</option>
+            <option value="derjenige">derjenige</option><option value="derselbe">derselbe</option>
+          </optgroup>
+          <optgroup label="Quantor">
+            <option value="alle">alle</option><option value="beide">beide</option>
+            <option value="einige">einige</option><option value="viele">viele</option>
+            <option value="wenige">wenige</option><option value="jemand">jemand</option>
+            <option value="niemand">niemand</option>
+          </optgroup>
+        </select>`)}
+      </div>
+
+      <!-- Possessor-Genus + Ziel-Genus/Ziel-Numerus (für poss) -->
+      <div id="pro-ziel-section" style="grid-column:1/-1;display:none;padding:10px 0 0 0;border-top:1px solid var(--c-border)">
+        <!-- Possessor-Genus: nur bei p3 (sein- vs. ihr-) -->
+        <div id="pro-poss-genus-section" style="display:none;margin-bottom:10px;padding:8px 12px;
+          background:color-mix(in srgb,var(--c-accent) 6%,transparent);
+          border:1px solid color-mix(in srgb,var(--c-accent) 20%,transparent);
+          border-radius:var(--radius-micro)">
+          <div style="font-size:11px;font-weight:600;color:var(--c-text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">
+            Genus der 3. Person (sein- / ihr-)
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div>
+              ${row('Possessor-Genus', makeSelect('pro-poss-genus',
+                ['msk','fem','neu','var'],
+                ['Maskulinum (sein-)', 'Femininum (ihr-)', 'Neutrum (sein-)', 'Variable']
+              ))}
+            </div>
+            <div id="pro-poss-genus-var-wrap" style="display:none">
+              ${row('Genus-Variable', `<div id="pro-poss-genus-var-cb-wrap"></div><input type="hidden" id="pro-poss-genus-var-hidden" />`)}
+            </div>
+          </div>
+        </div>
+        <div style="font-size:11px;font-weight:600;color:var(--c-text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Bezugsnomen (das Besessene)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            ${row('Ziel-Genus', makeSelect('pro-ziel-genus', ['msk','fem','neu','var'], ['Maskulinum','Femininum','Neutrum','Variable']))}
+          </div>
+          <div id="pro-ziel-genus-var-wrap" style="display:none">
+            ${row('Genus-Variable', `<div id="pro-ziel-genus-var-cb-wrap"></div><input type="hidden" id="pro-ziel-genus-var-hidden" />`)}
+          </div>
+          <div>
+            ${row('Ziel-Numerus', makeSelect('pro-ziel-numerus', ['sgl','plu','def'], ['Singular','Plural','Defektiva (Variable)']))}
+          </div>
+          <div id="pro-ziel-def-wrap" style="display:none">
+            ${row('Defektiva-Variable', `<div id="pro-ziel-def-cb-wrap"></div><input type="hidden" id="pro-ziel-def-hidden" />`)}
+          </div>
+        </div>
+      </div>
     </div>
     <div style="margin-top:16px;padding:10px 14px;background:var(--c-surface-3);border-radius:var(--radius);font-family:var(--font-mono);font-size:13px;color:var(--c-dsl-pro)" id="pro-preview"></div>
   `;
 
   openModal({
-    id: 'modal-pro', title: 'PRO-Token einfügen', bodyHTML, width: '480px',
+    id: 'modal-pro', title: 'PRO-Token einfügen', bodyHTML, width: '520px',
     buttons: [
       { label: 'Abbrechen', cls: 'btn-secondary', action: 'close' },
       { label: 'Einfügen', cls: 'btn-primary', action: (close) => { insertTokenAtCursor(buildPROToken()); close(); }},
     ],
-    onOpen: () => {
-      updatePreview('pro-preview', buildPROToken);
-      ['pro-subtype','pro-person','pro-numerus','pro-kasus','pro-genus','pro-stem'].forEach(id => {
-        sel(id)?.addEventListener('change', () => updatePreview('pro-preview', buildPROToken));
+    onOpen: (dialog) => {
+      const upd = () => updatePreview('pro-preview', buildPROToken);
+
+      // Possessor-Numerus Combobox
+      const defNumHidden = dialog.querySelector('#pro-def-num-hidden');
+      const defNumWrap   = dialog.querySelector('#pro-def-num-wrap');
+      createCombobox({ container: dialog.querySelector('#pro-def-num-cb-wrap'), items: defVars,
+        value: defVars[0]??'', placeholder:'Defektiva-Variable…', id:'pro-def-num-cb',
+        onChange: v => { defNumHidden.value=v; upd(); } });
+      defNumHidden.value = defVars[0] ?? '';
+
+      // Genus-Variable Combobox
+      const genusVarHidden = dialog.querySelector('#pro-genus-var-hidden');
+      const genusVarWrap   = dialog.querySelector('#pro-genus-var-wrap');
+      createCombobox({ container: dialog.querySelector('#pro-genus-var-cb-wrap'), items: genusVars,
+        value: genusVars[0]??'', placeholder:'Genus-Variable…', id:'pro-genus-var-cb',
+        onChange: v => { genusVarHidden.value=v; upd(); } });
+      genusVarHidden.value = genusVars[0] ?? '';
+
+      // Ziel-Genus Combobox
+      const zGenusVarHidden = dialog.querySelector('#pro-ziel-genus-var-hidden');
+      const zGenusVarWrap   = dialog.querySelector('#pro-ziel-genus-var-wrap');
+      createCombobox({ container: dialog.querySelector('#pro-ziel-genus-var-cb-wrap'), items: genusVars,
+        value: genusVars[0]??'', placeholder:'Genus-Variable…', id:'pro-ziel-genus-var-cb',
+        onChange: v => { zGenusVarHidden.value=v; upd(); } });
+      zGenusVarHidden.value = genusVars[0] ?? '';
+
+      // Ziel-Numerus Combobox
+      const zDefHidden = dialog.querySelector('#pro-ziel-def-hidden');
+      const zDefWrap   = dialog.querySelector('#pro-ziel-def-wrap');
+      createCombobox({ container: dialog.querySelector('#pro-ziel-def-cb-wrap'), items: defVars,
+        value: defVars[0]??'', placeholder:'Defektiva-Variable…', id:'pro-ziel-def-cb',
+        onChange: v => { zDefHidden.value=v; upd(); } });
+      zDefHidden.value = defVars[0] ?? '';
+
+      // Possessor-Genus Combobox (für PRO:poss + p3)
+      const possGenusVarHidden = dialog.querySelector('#pro-poss-genus-var-hidden');
+      const possGenusVarWrap   = dialog.querySelector('#pro-poss-genus-var-wrap');
+      createCombobox({ container: dialog.querySelector('#pro-poss-genus-var-cb-wrap'), items: genusVars,
+        value: genusVars[0]??'', placeholder:'Genus-Variable…', id:'pro-poss-genus-var-cb',
+        onChange: v => { possGenusVarHidden.value=v; upd(); } });
+      possGenusVarHidden.value = genusVars[0] ?? '';
+
+      sel('pro-poss-genus')?.addEventListener('change', () => {
+        const isVar = sel('pro-poss-genus')?.value === 'var';
+        possGenusVarWrap.style.display    = isVar ? '' : 'none';
+        possGenusVarWrap.style.gridColumn = isVar ? '1/-1' : '';
+        upd();
       });
+
+      // Dynamisches Anzeigen/Verstecken je nach Subtyp + Person
+      const adaptToSubtype = () => {
+        const sub    = sel('pro-subtype')?.value ?? 'pers';
+        const pers   = sel('pro-person')?.value  ?? 'p1';
+        const isPoss = sub === 'poss';
+        const isRefl = sub === 'refl';
+        const needsGenus = !isPoss &&
+          ((sub === 'pers' && pers === 'p3') || sub === 'dem' || sub === 'rel');
+        const needsStem  = sub === 'dem' || sub === 'quant';
+        const isP3poss   = isPoss && pers === 'p3';
+
+        dialog.querySelector('#pro-person-wrap').style.display       = ['pers','refl','poss'].includes(sub) ? '' : 'none';
+        dialog.querySelector('#pro-genus-wrap').style.display        = needsGenus ? '' : 'none';
+        dialog.querySelector('#pro-stem-wrap').style.display         = needsStem  ? '' : 'none';
+        dialog.querySelector('#pro-ziel-section').style.display      = isPoss     ? '' : 'none';
+        // Possessor-Genus nur bei poss + p3
+        dialog.querySelector('#pro-poss-genus-section').style.display = isP3poss  ? '' : 'none';
+
+        // Genus-Variable Toggle
+        const showGenusVar = needsGenus && sel('pro-genus')?.value === 'var';
+        genusVarWrap.style.display = showGenusVar ? '' : 'none';
+        upd();
+      };
+
+      sel('pro-subtype')?.addEventListener('change', adaptToSubtype);
+      sel('pro-person')?.addEventListener('change', adaptToSubtype);
+
+      sel('pro-numerus')?.addEventListener('change', () => {
+        defNumWrap.style.display = sel('pro-numerus')?.value === 'def' ? '' : 'none';
+        defNumWrap.style.gridColumn = sel('pro-numerus')?.value === 'def' ? '1/-1' : '';
+        upd();
+      });
+      sel('pro-genus')?.addEventListener('change', () => {
+        genusVarWrap.style.display = sel('pro-genus')?.value === 'var' ? '' : 'none';
+        genusVarWrap.style.gridColumn = sel('pro-genus')?.value === 'var' ? '1/-1' : '';
+        upd();
+      });
+      sel('pro-ziel-genus')?.addEventListener('change', () => {
+        zGenusVarWrap.style.display = sel('pro-ziel-genus')?.value === 'var' ? '' : 'none';
+        upd();
+      });
+      sel('pro-ziel-numerus')?.addEventListener('change', () => {
+        zDefWrap.style.display = sel('pro-ziel-numerus')?.value === 'def' ? '' : 'none';
+        upd();
+      });
+      ['pro-kasus','pro-stem'].forEach(id => sel(id)?.addEventListener('change', upd));
+
+      adaptToSubtype();
+      upd();
     },
   });
 }
 
-// ── ART Dialog ────────────────────────────────────────────────────────────
+// ── ART Dialog ─────────────────────────────────────────────────────────────
+// Erweiterungen: Numerus-Variable (Defektiva) + Genus-Variable (Nomen/Defektiva)
+
+// ── ART Dialog ─────────────────────────────────────────────────────────────
+//
+// Token-Format Possessivartikel:
+//   {ART:poss|<Possessor-Num>|<Kasus>|<Ziel-Genus>|<Person>}
+//
+// Erklärung der Flags bei poss:
+//   Possessor-Numerus: Numerus der Person, der etwas gehört (sg/pl/def)
+//   Kasus:             Kasus des Artikels im Satz
+//   Ziel-Genus:        Genus des besessenen Nomens (msk/fem/neu/Variable)
+//   Person:            Wem gehört es (p1/p2/p3/p2form)
+//
+// Beispiele:
+//   {ART:poss|sgl|nom|neu|p1}      → mein (Fahrrad, neu, Singular-Besitzer)
+//   {ART:poss|sgl|nom|fem|p1}      → meine (Tasche, fem)
+//   {ART:poss|sgl|nom|Tier1|p1}    → Ziel-Genus via Variable
+//
+// Für andere Subtypen (def/ind/neg/dem/w/quant):
+//   {ART:def|sgl|nom|msk}
+//   {ART:dem|sgl|nom|msk|dieser}
+
+// ── ART Token-Builder ──────────────────────────────────────────────────────
+//
+// Für ALLE non-poss Subtypen:
+//   {ART:def|<poss-num>|<kasus>|<ziel-genus>}
+//   (numPart = Numerus des Nomens, genusPart = Genus des Nomens)
+//
+// Für POSS — vollständig parallel zu PRO:poss:
+//   {ART:poss|<person>|[<poss-genus> wenn p3]|<poss-num>|<kasus>|<ziel-genus>|<ziel-num>}
+//
+// Beispiele:
+//   mein Fahrrad (p1, sg, nom, Ziel=neu sg):
+//     {ART:poss|p1|sgl|nom|neu|sgl}
+//   ihr Buch (p3+fem, sg, nom, Ziel=neu sg):
+//     {ART:poss|p3|fem|sgl|nom|neu|sgl}
+//   ihre Häute (p3+fem, sg, nom, Ziel=fem pl):
+//     {ART:poss|p3|fem|sgl|nom|fem|plu}
+
 function buildARTToken() {
   const subtype = sel('art-subtype')?.value ?? 'def';
-  const numerus = sel('art-numerus')?.value ?? 'sgl';
   const kasus   = sel('art-kasus')?.value ?? 'nom';
-  const genus   = sel('art-genus')?.value ?? 'msk';
-  const person  = sel('art-person')?.value ?? 'p1';
-  const stem    = sel('art-stem')?.value ?? '';
-  let flags = `|${numerus}|${kasus}|${genus}`;
-  if (subtype === 'poss') flags += `|${person}`;
+
+  // Ziel-Genus (gilt für alle Subtypen)
+  const genus    = sel('art-genus')?.value ?? 'msk';
+  const genusVar = sel('art-genus-var-hidden')?.value ?? '';
+  const genusPart = (genus === 'var' && genusVar) ? genusVar : genus;
+
+  if (subtype === 'poss') {
+    // Possessor-Person
+    const person = sel('art-person')?.value ?? 'p1';
+
+    // Possessor-Genus (nur bei p3)
+    const possGenUS  = sel('art-poss-genus')?.value ?? 'msk';
+    const possGenVar = sel('art-poss-genus-var-hidden')?.value ?? '';
+    const possPart   = (possGenUS === 'var' && possGenVar) ? possGenVar : possGenUS;
+    const p3Flag     = (person === 'p3') ? `|${possPart}` : '';
+
+    // Possessor-Numerus (wer besitzt)
+    const possNum    = sel('art-poss-num')?.value ?? 'sgl';
+    const possNumVar = sel('art-poss-num-var-hidden')?.value ?? '';
+    const possNumPart = (possNum === 'def' && possNumVar) ? `def:${possNumVar}` : possNum;
+
+    // Ziel-Numerus (was wird besessen)
+    const zNum    = sel('art-ziel-num')?.value ?? 'sgl';
+    const zNumVar = sel('art-ziel-num-var-hidden')?.value ?? '';
+    const zNumPart = (zNum === 'def' && zNumVar) ? `def:${zNumVar}` : zNum;
+
+    // Parallel zu PRO:poss: person|[poss-genus]|poss-num|kasus|ziel-genus|ziel-num
+    return `{ART:poss|${person}${p3Flag}|${possNumPart}|${kasus}|${genusPart}|${zNumPart}}`;
+  }
+
+  // Non-poss: Numerus = Numerus des Nomens, kein Possessor
+  const numerus   = sel('art-numerus')?.value ?? 'sgl';
+  const defNumVar = sel('art-def-num-hidden')?.value ?? '';
+  const numPart   = (numerus === 'def' && defNumVar) ? `def:${defNumVar}` : numerus;
+  const stem      = sel('art-stem')?.value ?? '';
+
+  let flags = `|${numPart}|${kasus}|${genusPart}`;
   if (['dem','quant'].includes(subtype) && stem) flags += `|${stem}`;
   return `{ART:${subtype}${flags}}`;
 }
 
 export function openARTDialog() {
+  const defVars   = getAllDefVariables();
+  const genusVars = [...getAllNomenVariables(), ...getAllDefVariables()];
+
   const bodyHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div style="grid-column:1/-1">
@@ -237,74 +611,338 @@ export function openARTDialog() {
           ['bestimmter Artikel','unbestimmter Artikel','negativer Artikel','Possessivartikel','Demonstrativartikel','w-Artikel (welch-)','Quantorartikel']
         ))}
       </div>
-      <div>${row('Numerus', makeSelect('art-numerus', ['sgl','plu'], ['Singular','Plural']))}</div>
-      <div>${row('Kasus',   makeSelect('art-kasus',   ['nom','gen','dat','akk']))}</div>
-      <div>${row('Genus',   makeSelect('art-genus',   ['msk','fem','neu'], ['Maskulinum','Femininum','Neutrum']))}</div>
-      <div>${row('Person (für poss)', makeSelect('art-person', ['p1','p2','p3','p2form'], ['p1','p2','p3','formell']))}</div>
-      <div style="grid-column:1/-1">${row('Stem (für dem/quant)', `<select class="form-select" id="art-stem">
-        <option value="">—</option>
-        <optgroup label="Demonstrativ">
-          <option value="dieser">dieser</option><option value="jener">jener</option>
-          <option value="jeder">jeder</option><option value="mancher">mancher</option>
-          <option value="solcher">solcher</option>
-        </optgroup>
-        <optgroup label="Quantor">
-          <option value="alle">alle</option><option value="beide">beide</option>
-          <option value="einige">einige</option><option value="viele">viele</option>
-          <option value="wenige">wenige</option>
-        </optgroup>
-      </select>`)}</div>
+
+      <!-- ─── Non-poss Felder (def/ind/neg/dem/w/quant) ─────────────────── -->
+      <div id="art-nonpro-fields" style="display:contents">
+        <div>${row('Numerus', makeSelect('art-numerus', ['sgl','plu','def'], ['Singular','Plural','Defektiva (Variable)']))}</div>
+        <div id="art-def-num-wrap" style="display:none">
+          ${row('Defektiva-Variable', `<div id="art-def-num-cb-wrap"></div><input type="hidden" id="art-def-num-hidden" />`)}
+        </div>
+        <div>${row('Kasus', makeSelect('art-kasus', ['nom','gen','dat','akk']))}</div>
+        <div id="art-genus-wrap">
+          ${row('Genus', makeSelect('art-genus', ['msk','fem','neu','var'], ['Maskulinum','Femininum','Neutrum','Variable']))}
+        </div>
+        <div id="art-genus-var-wrap" style="display:none">
+          ${row('Genus-Variable', `<div id="art-genus-var-cb-wrap"></div><input type="hidden" id="art-genus-var-hidden" />`)}
+        </div>
+        <div id="art-stem-wrap" style="grid-column:1/-1;display:none">
+          ${row('Stamm (für dem/quant)', `<select class="form-select" id="art-stem">
+            <option value="">—</option>
+            <optgroup label="Demonstrativ">
+              <option value="dieser">dieser</option><option value="jener">jener</option>
+              <option value="jeder">jeder</option><option value="mancher">mancher</option>
+              <option value="solcher">solcher</option>
+            </optgroup>
+            <optgroup label="Quantor">
+              <option value="alle">alle</option><option value="beide">beide</option>
+              <option value="einige">einige</option><option value="viele">viele</option>
+              <option value="wenige">wenige</option>
+            </optgroup>
+          </select>`)}
+        </div>
+      </div>
+
+      <!-- ─── Poss-Felder (parallel zu PRO:poss) ─────────────────────────
+           Format: person|[poss-genus wenn p3]|poss-num|kasus|ziel-genus|ziel-num
+      ─────────────────────────────────────────────────────────────────────── -->
+      <div id="art-poss-fields" style="display:none;grid-column:1/-1">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+
+          <!-- Possessor-Sektion -->
+          <div style="grid-column:1/-1;font-size:11px;font-weight:600;color:var(--c-text-muted);
+            text-transform:uppercase;letter-spacing:.06em;padding-top:2px">
+            Possessor (wer besitzt)
+          </div>
+          <div>
+            ${row('Person', makeSelect('art-person', ['p1','p2','p3','p2form'],
+              ['1. Person (mein-)', '2. Person (dein-)', '3. Person (sein-/ihr-)', 'Formell (Ihr-)']))}
+          </div>
+          <div id="art-poss-genus-outer" style="display:none">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <div>
+                ${row('Possessor-Genus', makeSelect('art-poss-genus',
+                  ['msk','fem','neu','var'],
+                  ['Maskulinum (sein-)', 'Femininum (ihr-)', 'Neutrum (sein-)', 'Variable']
+                ))}
+              </div>
+              <div id="art-poss-genus-var-inner" style="display:none">
+                ${row('Genus-Variable', `<div id="art-poss-genus-var-cb-wrap"></div><input type="hidden" id="art-poss-genus-var-hidden" />`)}
+              </div>
+            </div>
+          </div>
+          <div>
+            ${row('Possessor-Numerus', makeSelect('art-poss-num', ['sgl','plu','def'], ['Singular','Plural','Defektiva (Variable)']))}
+          </div>
+          <div id="art-poss-num-var-wrap" style="display:none">
+            ${row('Defektiva-Variable', `<div id="art-poss-num-var-cb-wrap"></div><input type="hidden" id="art-poss-num-var-hidden" />`)}
+          </div>
+
+          <!-- Ziel-Sektion -->
+          <div style="grid-column:1/-1;font-size:11px;font-weight:600;color:var(--c-text-muted);
+            text-transform:uppercase;letter-spacing:.06em;padding-top:8px;
+            border-top:1px solid var(--c-border);margin-top:4px">
+            Ziel-Nomen (was wird besessen)
+          </div>
+          <div>
+            ${row('Kasus', makeSelect('art-kasus', ['nom','gen','dat','akk']))}
+          </div>
+          <div>
+            ${row('Ziel-Genus', makeSelect('art-genus', ['msk','fem','neu','var'],
+              ['Maskulinum', 'Femininum', 'Neutrum', 'Variable']))}
+          </div>
+          <div id="art-genus-var-wrap" style="display:none">
+            ${row('Genus-Variable', `<div id="art-genus-var-cb-wrap"></div><input type="hidden" id="art-genus-var-hidden" />`)}
+          </div>
+          <div>
+            ${row('Ziel-Numerus', makeSelect('art-ziel-num', ['sgl','plu','def'], ['Singular','Plural','Defektiva (Variable)']))}
+          </div>
+          <div id="art-ziel-num-var-wrap" style="display:none">
+            ${row('Defektiva-Variable', `<div id="art-ziel-num-var-cb-wrap"></div><input type="hidden" id="art-ziel-num-var-hidden" />`)}
+          </div>
+        </div>
+      </div>
     </div>
     <div style="margin-top:16px;padding:10px 14px;background:var(--c-surface-3);border-radius:var(--radius);font-family:var(--font-mono);font-size:13px;color:var(--c-dsl-art)" id="art-preview"></div>
   `;
 
   openModal({
-    id: 'modal-art', title: 'ART-Token einfügen', bodyHTML, width: '480px',
+    id: 'modal-art', title: 'ART-Token einfügen', bodyHTML, width: '500px',
     buttons: [
       { label: 'Abbrechen', cls: 'btn-secondary', action: 'close' },
-      { label: 'Einfügen', cls: 'btn-primary', action: (close) => { insertTokenAtCursor(buildARTToken()); close(); }},
+      { label: 'Einfügen',  cls: 'btn-primary',   action: (close) => { insertTokenAtCursor(buildARTToken()); close(); } },
     ],
-    onOpen: () => {
-      updatePreview('art-preview', buildARTToken);
-      ['art-subtype','art-numerus','art-kasus','art-genus','art-person','art-stem'].forEach(id => {
-        sel(id)?.addEventListener('change', () => updatePreview('art-preview', buildARTToken));
+    onOpen: (dialog) => {
+      const upd = () => updatePreview('art-preview', buildARTToken);
+      const q   = id => dialog.querySelector(`#${id}`);
+
+      // ── Non-poss Comboboxen ──────────────────────────────────────────────
+
+      // Defektiva-Numerus (non-poss)
+      const defNumH = q('art-def-num-hidden');
+      createCombobox({ container: q('art-def-num-cb-wrap'), items: defVars,
+        value: defVars[0]??'', placeholder:'Defektiva-Variable…', id:'art-def-num-cb',
+        onChange: v => { defNumH.value=v; upd(); } });
+      defNumH.value = defVars[0] ?? '';
+
+      // Genus-Variable (non-poss & poss Ziel-Genus)
+      const genVarH = q('art-genus-var-hidden');
+      createCombobox({ container: q('art-genus-var-cb-wrap'), items: genusVars,
+        value: genusVars[0]??'', placeholder:'Genus-Variable…', id:'art-genus-var-cb',
+        onChange: v => { genVarH.value=v; upd(); } });
+      genVarH.value = genusVars[0] ?? '';
+
+      // ── Poss-Comboboxen ──────────────────────────────────────────────────
+
+      // Possessor-Genus (poss + p3)
+      const possGenH = q('art-poss-genus-var-hidden');
+      createCombobox({ container: q('art-poss-genus-var-cb-wrap'), items: genusVars,
+        value: genusVars[0]??'', placeholder:'Genus-Variable…', id:'art-poss-genus-var-cb',
+        onChange: v => { possGenH.value=v; upd(); } });
+      possGenH.value = genusVars[0] ?? '';
+
+      // Possessor-Numerus Variable
+      const possNumVarH = q('art-poss-num-var-hidden');
+      createCombobox({ container: q('art-poss-num-var-cb-wrap'), items: defVars,
+        value: defVars[0]??'', placeholder:'Defektiva-Variable…', id:'art-poss-num-var-cb',
+        onChange: v => { possNumVarH.value=v; upd(); } });
+      possNumVarH.value = defVars[0] ?? '';
+
+      // Ziel-Numerus Variable
+      const zNumVarH = q('art-ziel-num-var-hidden');
+      createCombobox({ container: q('art-ziel-num-var-cb-wrap'), items: defVars,
+        value: defVars[0]??'', placeholder:'Defektiva-Variable…', id:'art-ziel-num-var-cb',
+        onChange: v => { zNumVarH.value=v; upd(); } });
+      zNumVarH.value = defVars[0] ?? '';
+
+      // ── Toggle-Handler ────────────────────────────────────────────────────
+
+      // Subtyp → poss vs. non-poss Felder
+      const adaptToSubtype = () => {
+        const sub    = sel('art-subtype')?.value ?? 'def';
+        const isPoss = sub === 'poss';
+        const isStem = ['dem','quant'].includes(sub);
+
+        q('art-nonpro-fields').style.display = isPoss ? 'none'     : 'contents';
+        q('art-poss-fields').style.display   = isPoss ? ''         : 'none';
+        if (!isPoss) {
+          q('art-stem-wrap').style.display = isStem ? '' : 'none';
+        }
+        upd();
+      };
+
+      // p3 → Possessor-Genus sichtbar
+      const adaptPerson = () => {
+        const isP3 = sel('art-person')?.value === 'p3';
+        q('art-poss-genus-outer').style.display = isP3 ? '' : 'none';
+        upd();
+      };
+
+      // Poss-Genus Variable Toggle
+      sel('art-poss-genus')?.addEventListener('change', () => {
+        q('art-poss-genus-var-inner').style.display =
+          sel('art-poss-genus')?.value === 'var' ? '' : 'none';
+        upd();
       });
+
+      // Poss-Num Variable Toggle
+      sel('art-poss-num')?.addEventListener('change', () => {
+        q('art-poss-num-var-wrap').style.display =
+          sel('art-poss-num')?.value === 'def' ? '' : 'none';
+        upd();
+      });
+
+      // Ziel-Genus Variable Toggle
+      sel('art-genus')?.addEventListener('change', () => {
+        q('art-genus-var-wrap').style.display =
+          sel('art-genus')?.value === 'var' ? '' : 'none';
+        upd();
+      });
+
+      // Ziel-Num Variable Toggle
+      sel('art-ziel-num')?.addEventListener('change', () => {
+        q('art-ziel-num-var-wrap').style.display =
+          sel('art-ziel-num')?.value === 'def' ? '' : 'none';
+        upd();
+      });
+
+      // Non-poss Numerus Variable Toggle
+      sel('art-numerus')?.addEventListener('change', () => {
+        const isDef = sel('art-numerus')?.value === 'def';
+        q('art-def-num-wrap').style.display    = isDef ? '' : 'none';
+        q('art-def-num-wrap').style.gridColumn = isDef ? '1/-1' : '';
+        upd();
+      });
+
+      sel('art-subtype')?.addEventListener('change', adaptToSubtype);
+      sel('art-person')?.addEventListener('change',  adaptPerson);
+      ['art-kasus','art-stem'].forEach(id => sel(id)?.addEventListener('change', upd));
+
+      // Initial
+      adaptToSubtype();
+      adaptPerson();
+      upd();
     },
   });
 }
 
-// ── NAM Dialog ────────────────────────────────────────────────────────────
+// ── NAM Dialog ─────────────────────────────────────────────────────────────
+//
+// Erweiterungen:
+//   • Genus-Variable: Statt festen Genus kann eine NAM-Variable referenziert
+//     werden (ref:Vorname1) → Genus wird vom referenzierten Token geerbt
+//   • Volk-Variable: ebenso per Combobox wählbar
+//   • Region-Variable: ebenso per Combobox wählbar
+//
+// Wenn ein Feld auf "Variable (ref:)" gestellt ist, wird das Feld in der
+// Flag-Liste durch "ref:VariablenName" ersetzt.
+//
+// Beispiele:
+//   {NAM:Nachname1|rnd|rnd|rnd|nom|ref:Vorname1}
+//   → Nachname erbt Genus, Volk, Region von Vorname1
+//
+//   Einzelne Felder per ref: sind aktuell nicht im DSL-Standard —
+//   es wird die globale ref: Syntax (alle drei Felder) verwendet.
+
+// NAM-Variablen für Referenz-Comboboxen
+function getAllNAMVariables() {
+  return ['Vorname1','Vorname2','Vorname3','Nachname1','Nachname2','Nachname3'];
+}
+
 function buildNAMToken() {
   const subtype = sel('nam-subtype')?.value ?? 'Vorname';
   const idx     = sel('nam-idx')?.value ?? '1';
-  const genus   = sel('nam-genus')?.value ?? 'rnd';
-  const volk    = sel('nam-volk')?.value ?? 'rnd';
-  const region  = sel('nam-region')?.value ?? 'rnd';
   const kasus   = sel('nam-kasus')?.value ?? 'nom';
-  const ref     = sel('nam-ref')?.value?.trim() ?? '';
-  let flags = `|${genus}|${volk}|${region}|${kasus}`;
-  if (ref) flags += `|ref:${ref}`;
+
+  // Genus
+  const genusMode = sel('nam-genus-mode')?.value ?? 'fixed';
+  const genusFix  = sel('nam-genus-fixed')?.value ?? 'rnd';
+  const genusRef  = sel('nam-genus-ref-hidden')?.value ?? '';
+  const genus     = genusMode === 'ref' && genusRef ? genusRef : genusFix;
+
+  // Volk
+  const volkMode  = sel('nam-volk-mode')?.value ?? 'fixed';
+  const volkFix   = sel('nam-volk-fixed')?.value ?? 'rnd';
+  const volkRef   = sel('nam-volk-ref-hidden')?.value ?? '';
+  const volk      = volkMode === 'ref' && volkRef ? volkRef : volkFix;
+
+  // Region
+  const regionMode = sel('nam-region-mode')?.value ?? 'fixed';
+  const regionFix  = sel('nam-region-fixed')?.value ?? 'rnd';
+  const regionRef  = sel('nam-region-ref-hidden')?.value ?? '';
+  const region     = regionMode === 'ref' && regionRef ? regionRef : regionFix;
+
+  // Wenn alle drei auf dieselbe Referenz zeigen → kompakte ref:-Syntax
+  const allSameRef = genusMode === 'ref' && volkMode === 'ref' && regionMode === 'ref'
+    && genusRef === volkRef && genusRef === regionRef;
+
+  let flags;
+  if (allSameRef && genusRef) {
+    // Kompakt: rnd|rnd|rnd|kasus|ref:Vorname1
+    flags = `|rnd|rnd|rnd|${kasus}|ref:${genusRef}`;
+  } else {
+    // Einzelne Werte — ref: wird nur gesetzt wenn alle gleich (sonst feste Werte)
+    const gPart = genusMode === 'ref' && genusRef ? `ref:${genusRef}` : genus;
+    const vPart = volkMode  === 'ref' && volkRef  ? `ref:${volkRef}`  : volk;
+    const rPart = regionMode=== 'ref' && regionRef? `ref:${regionRef}`: region;
+    flags = `|${gPart}|${vPart}|${rPart}|${kasus}`;
+  }
+
   return `{NAM:${subtype}${idx}${flags}}`;
 }
 
+function makeNAMFieldRow(label, modeId, fixedId, fixedOpts, fixedLabels, refWrapId, refCbId, refHiddenId) {
+  return `
+    <div style="grid-column:1/-1">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span class="form-label" style="margin:0;min-width:60px">${label}</span>
+        ${makeSelect(modeId, ['fixed','ref'], ['Fester Wert','Variable (ref:)'])}
+      </div>
+      <div id="${refWrapId}-fixed">
+        ${makeSelect(fixedId, fixedOpts, fixedLabels)}
+      </div>
+      <div id="${refWrapId}" style="display:none">
+        <div id="${refCbId}-wrap"></div>
+        <input type="hidden" id="${refHiddenId}" />
+      </div>
+    </div>
+  `;
+}
+
 export function openNAMDialog() {
+  const namVars = getAllNAMVariables();
+
+  const VOLK_OPTS   = ['rnd','Mensch','Elf','Zwerg','Halbling','Gnom','Halbelf','Halbork','Drachenblütiger','Tiefling'];
+  const VOLK_LABELS = ['zufällig','Mensch','Elf','Zwerg','Halbling','Gnom','Halbelf','Halbork','Drachenblütiger','Tiefling'];
+  const REG_OPTS    = ['rnd','germanisch','slawisch','romanisch','skandinavisch','keltisch','griechisch',
+                       'arabisch','persisch','bantuisch','ägyptisch','meso-amerikanisch','polynesisch','indisch','chinesisch','japanisch'];
+  const REG_LABELS  = ['zufällig','Germanisch','Slawisch','Romanisch','Skandinavisch','Keltisch','Griechisch',
+                       'Arabisch','Persisch','Bantuisch','Ägyptisch','Meso-Amerikanisch','Polynesisch','Indisch','Chinesisch','Japanisch'];
+
   const bodyHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <div>${row('Subtyp',  makeSelect('nam-subtype', ['Vorname','Nachname']))}</div>
-      <div>${row('Index',   makeSelect('nam-idx',     ['1','2','3']))}</div>
-      <div>${row('Genus',   makeSelect('nam-genus',   ['rnd','msk','fem','neu'], ['zufällig','männlich','weiblich','nicht-binär']))}</div>
-      <div>${row('Kasus',   makeSelect('nam-kasus',   ['nom','gen','dat','akk']))}</div>
-      <div style="grid-column:1/-1">${row('Volk', makeSelect('nam-volk',
-        ['rnd','Mensch','Elf','Zwerg','Halbling','Gnom','Halbelf','Halbork','Drachenblütiger','Tiefling'],
-        ['zufällig','Mensch','Elf','Zwerg','Halbling','Gnom','Halbelf','Halbork','Drachenblütiger','Tiefling']
-      ))}</div>
-      <div style="grid-column:1/-1">${row('Region', makeSelect('nam-region',
-        ['rnd','germanisch','slawisch','romanisch','skandinavisch','keltisch','griechisch',
-         'arabisch','persisch','bantuisch','ägyptisch','meso-amerikanisch','polynesisch','indisch','chinesisch','japanisch'],
-        ['zufällig','Germanisch','Slawisch','Romanisch','Skandinavisch','Keltisch','Griechisch',
-         'Arabisch','Persisch','Bantuisch','Ägyptisch','Meso-Amerikanisch','Polynesisch','Indisch','Chinesisch','Japanisch']
-      ))}</div>
-      <div style="grid-column:1/-1">${row('Referenz (ref:)', `<input class="form-input" id="nam-ref" placeholder="z.B. Volk1 — optional" />`)}</div>
+      <div>${row('Subtyp', makeSelect('nam-subtype', ['Vorname','Nachname']))}</div>
+      <div>${row('Index',  makeSelect('nam-idx', ['1','2','3']))}</div>
+      <div>${row('Kasus',  makeSelect('nam-kasus', ['nom','gen','dat','akk']))}</div>
+      <div></div>
+
+      ${makeNAMFieldRow(
+        'Genus',
+        'nam-genus-mode',
+        'nam-genus-fixed', ['rnd','msk','fem','neu'], ['zufällig','männlich','weiblich','nicht-binär'],
+        'nam-genus-ref-section', 'nam-genus-ref-cb', 'nam-genus-ref-hidden'
+      )}
+      ${makeNAMFieldRow(
+        'Volk',
+        'nam-volk-mode',
+        'nam-volk-fixed', VOLK_OPTS, VOLK_LABELS,
+        'nam-volk-ref-section', 'nam-volk-ref-cb', 'nam-volk-ref-hidden'
+      )}
+      ${makeNAMFieldRow(
+        'Region',
+        'nam-region-mode',
+        'nam-region-fixed', REG_OPTS, REG_LABELS,
+        'nam-region-ref-section', 'nam-region-ref-cb', 'nam-region-ref-hidden'
+      )}
     </div>
     <div style="margin-top:16px;padding:10px 14px;background:var(--c-surface-3);border-radius:var(--radius);font-family:var(--font-mono);font-size:13px;color:var(--c-dsl-nam)" id="nam-preview"></div>
   `;
@@ -315,12 +953,51 @@ export function openNAMDialog() {
       { label: 'Abbrechen', cls: 'btn-secondary', action: 'close' },
       { label: 'Einfügen', cls: 'btn-primary', action: (close) => { insertTokenAtCursor(buildNAMToken()); close(); }},
     ],
-    onOpen: () => {
-      updatePreview('nam-preview', buildNAMToken);
-      ['nam-subtype','nam-idx','nam-genus','nam-volk','nam-region','nam-kasus'].forEach(id => {
-        sel(id)?.addEventListener('change', () => updatePreview('nam-preview', buildNAMToken));
+    onOpen: (dialog) => {
+      const upd = () => updatePreview('nam-preview', buildNAMToken);
+
+      // Comboboxen für Genus-Ref / Volk-Ref / Region-Ref
+      const fields = [
+        { modeId: 'nam-genus-mode',  fixedId: 'nam-genus-fixed',
+          sectionId: 'nam-genus-ref-section',  cbWrapId: 'nam-genus-ref-cb-wrap',
+          hiddenId: 'nam-genus-ref-hidden',     cbId: 'nam-genus-ref-cb' },
+        { modeId: 'nam-volk-mode',   fixedId: 'nam-volk-fixed',
+          sectionId: 'nam-volk-ref-section',   cbWrapId: 'nam-volk-ref-cb-wrap',
+          hiddenId: 'nam-volk-ref-hidden',      cbId: 'nam-volk-ref-cb' },
+        { modeId: 'nam-region-mode', fixedId: 'nam-region-fixed',
+          sectionId: 'nam-region-ref-section', cbWrapId: 'nam-region-ref-cb-wrap',
+          hiddenId: 'nam-region-ref-hidden',    cbId: 'nam-region-ref-cb' },
+      ];
+
+      for (const f of fields) {
+        const hidden  = dialog.querySelector(`#${f.hiddenId}`);
+        const section = dialog.querySelector(`#${f.sectionId}`);
+        const fixedEl = dialog.querySelector(`#${f.sectionId}-fixed`);
+
+        createCombobox({
+          container: dialog.querySelector(`#${f.cbWrapId}`),
+          items: namVars,
+          value: namVars[0] ?? '',
+          placeholder: 'NAM-Variable (z.B. Vorname1)…',
+          id: f.cbId,
+          onChange: v => { hidden.value = v; upd(); },
+        });
+        hidden.value = namVars[0] ?? '';
+
+        const modeSel = dialog.querySelector(`#${f.modeId}`);
+        modeSel?.addEventListener('change', () => {
+          const isRef = modeSel.value === 'ref';
+          section.style.display  = isRef ? '' : 'none';
+          fixedEl.style.display  = isRef ? 'none' : '';
+          upd();
+        });
+      }
+
+      ['nam-subtype','nam-idx','nam-kasus',
+       'nam-genus-fixed','nam-volk-fixed','nam-region-fixed'].forEach(id => {
+        sel(id)?.addEventListener('change', upd);
       });
-      sel('nam-ref')?.addEventListener('input', () => updatePreview('nam-preview', buildNAMToken));
+      upd();
     },
   });
 }
@@ -335,16 +1012,13 @@ function buildCOMToken() {
 }
 
 export function openCOMDialog() {
-  const nomenLemmas = [...getNomenLemmas(), ...getAllVariables()];
-  const opts = [
-    `<optgroup label="Klassen">${nomenLemmas.filter(l => !/[0-9]$/.test(l)).map(l => `<option value="${l}">${l}</option>`).join('')}</optgroup>`,
-    `<optgroup label="Variablen">${nomenLemmas.filter(l => /[0-9]$/.test(l)).map(l => `<option value="${l}">${l}</option>`).join('')}</optgroup>`,
-  ].join('');
+  // Änderung 2: Nur Variablen
+  const variables = getAllNomenVariables();
 
   const bodyHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div style="grid-column:1/-1">
-        ${row('Lemma', `<select class="form-select" id="com-lemma">${opts}</select>`)}
+        ${row('Variable', `<div id="com-cb-wrap"></div><input type="hidden" id="com-lemma" />`)}
       </div>
       <div>${row('Numerus', makeSelect('com-numerus', ['sgl','plu'], ['Singular','Plural']))}</div>
       <div>${row('Kasus',   makeSelect('com-kasus',   ['nom','gen','dat','akk']))}</div>
@@ -358,11 +1032,20 @@ export function openCOMDialog() {
       { label: 'Abbrechen', cls: 'btn-secondary', action: 'close' },
       { label: 'Einfügen', cls: 'btn-primary', action: (close) => { insertTokenAtCursor(buildCOMToken()); close(); }},
     ],
-    onOpen: () => {
-      updatePreview('com-preview', buildCOMToken);
-      ['com-lemma', 'com-numerus', 'com-kasus'].forEach(id => {
-        sel(id)?.addEventListener('change', () => updatePreview('com-preview', buildCOMToken));
+    onOpen: (dialog) => {
+      const upd = () => updatePreview('com-preview', buildCOMToken);
+      const comVariables = getAllNomenVariables();
+      const hidden = dialog.querySelector('#com-lemma');
+      createCombobox({
+        container: dialog.querySelector('#com-cb-wrap'), items: comVariables,
+        value: comVariables[0] ?? '', placeholder: 'Variable suchen…', id: 'com-cb',
+        onChange: v => { hidden.value = v; upd(); },
       });
+      hidden.value = comVariables[0] ?? '';
+      ['com-numerus','com-kasus'].forEach(id => {
+        sel(id)?.addEventListener('change', upd);
+      });
+      upd();
     },
   });
 }
@@ -376,7 +1059,6 @@ function buildFUNToken() {
 
   if (fn !== 'dice') return `{FUN:${fn}}`;
 
-  // Build die spec: d6 / d20+1 / d8-2
   const dieSpec = modifier && modifier !== '0' && modifier !== '+0' && modifier !== '-0'
     ? `${die}${modifier.startsWith('+') || modifier.startsWith('-') ? modifier : '+' + modifier}`
     : die;
@@ -445,12 +1127,11 @@ export function openFUNDialog() {
   });
 }
 
-
 // ── DEF Dialog ────────────────────────────────────────────────────────────
 function buildDEFToken() {
-  const lemma   = sel('def-lemma')?.value ?? '';
-  const kasus   = sel('def-kasus')?.value ?? 'nom';
-  const art     = sel('def-art')?.value ?? '-';
+  const lemma     = sel('def-lemma')?.value ?? '';
+  const kasus     = sel('def-kasus')?.value ?? 'nom';
+  const art       = sel('def-art')?.value ?? '-';
   const renderArt = sel('def-render-art')?.checked;
   if (!lemma) return `{DEF:?}`;
   let flags = `|${kasus}`;
@@ -460,44 +1141,25 @@ function buildDEFToken() {
 }
 
 export function openDEFDialog() {
-  const defLemmas = []; // populated from defektivum schemas
-  const schemas   = (AppStore.get('schemas') ?? [])
-    .filter(s => s.type === 'defektivum')
-    .map(s => s.lemma ?? s.id);
-  const allVars = schemas.flatMap(base => [1,2,3].map(n => `${base}${n}`));
-  const opts = [
-    `<optgroup label="Defektiva-Klassen">${schemas.map(l => `<option value="${l}">${l}</option>`).join('')}</optgroup>`,
-    `<optgroup label="Variablen">${allVars.map(l => `<option value="${l}">${l}</option>`).join('')}</optgroup>`,
-  ].join('');
+  // Änderung 2: Nur Variablen für DEF
+  const variables = getAllDefVariables();
 
-const bodyHTML = `
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-    <div style="grid-column:1/-1">
-      ${row('Lemma / Variable',
-        `<select class="form-select" id="def-lemma">
-          ${opts || '<option value="">— (noch keine Defektiva-Klassen) —</option>'}
-        </select>`
-      )}
+  const bodyHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div style="grid-column:1/-1">
+        ${row('Variable',
+          `<div id="def-cb-wrap"></div><input type="hidden" id="def-lemma" />`
+        )}
+      </div>
+      <div>${row('Kasus', makeSelect('def-kasus', ['nom','gen','dat','akk']))}</div>
+      <div>${row('Artikel', makeSelect('def-art', ['-','def','ind','neg'], ['keiner','bestimmt','unbestimmt','negativ']))}</div>
+      <div style="display:flex;align-items:center;gap:8px;padding-top:22px;">
+        <input type="checkbox" id="def-render-art">
+        <label for="def-render-art">Artikel rendern (|art)</label>
+      </div>
     </div>
-
-    <div>${row('Kasus', makeSelect('def-kasus', ['nom','gen','dat','akk']))}</div>
-
-    <div>${row('Artikel',
-      makeSelect(
-        'def-art',
-        ['-','def','ind','neg'],
-        ['keiner','bestimmt','unbestimmt','negativ']
-      )
-    )}</div>
-
-    <div style="display:flex;align-items:center;gap:8px;padding-top:22px;">
-      <input type="checkbox" id="def-render-art">
-      <label for="def-render-art">Artikel rendern (|art)</label>
-    </div>
-  </div>
-
-  <div id="def-preview"></div>
-`;
+    <div style="margin-top:16px;padding:10px 14px;background:var(--c-surface-3);border-radius:var(--radius);font-family:var(--font-mono);font-size:13px;color:var(--c-accent)" id="def-preview"></div>
+  `;
 
   openModal({
     id: 'modal-def', title: 'DEF-Token einfügen', bodyHTML, width: '480px',
@@ -505,11 +1167,20 @@ const bodyHTML = `
       { label: 'Abbrechen', cls: 'btn-secondary', action: 'close' },
       { label: 'Einfügen', cls: 'btn-primary', action: (close) => { insertTokenAtCursor(buildDEFToken()); close(); }},
     ],
-    onOpen: () => {
-      updatePreview('def-preview', buildDEFToken);
-      ['def-lemma','def-kasus','def-art','def-render-art'].forEach(id => {
-        sel(id)?.addEventListener('change', () => updatePreview('def-preview', buildDEFToken));
+    onOpen: (dialog) => {
+      const upd = () => updatePreview('def-preview', buildDEFToken);
+      const defVariables = getAllDefVariables();
+      const hidden = dialog.querySelector('#def-lemma');
+      createCombobox({
+        container: dialog.querySelector('#def-cb-wrap'), items: defVariables,
+        value: defVariables[0] ?? '', placeholder: 'Defektiva-Variable…', id: 'def-cb',
+        onChange: v => { hidden.value = v; upd(); },
       });
+      hidden.value = defVariables[0] ?? '';
+      ['def-kasus','def-art','def-render-art'].forEach(id => {
+        sel(id)?.addEventListener('change', upd);
+      });
+      upd();
     },
   });
 }
@@ -528,7 +1199,6 @@ export function openTokenDialog(type) {
   }
 }
 
-// ── Wire up global event ───────────────────────────────────────────────────
 document.addEventListener('editor:open-token-dialog', (e) => {
   openTokenDialog(e.detail?.type);
 });

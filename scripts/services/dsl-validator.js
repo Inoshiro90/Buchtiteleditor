@@ -1,13 +1,12 @@
 // editor/services/dsl-validator.js
-// Tokenizer extracted from core/engine.js + strict per-type flag validation
+// Tokenizer + Validator
+// Änderung 1: buildKnownLemmas berücksichtigt virtuelle Klassen
 
-// ── Per-type allowed flag sets ─────────────────────────────────────────────
 const VALID_TYPES = new Set(['NOM', 'ADJ', 'ART', 'PRO', 'COM', 'NAM', 'FUN', 'DEF']);
 
-// Shared building blocks
 const F_NUMERUS   = new Set(['sgl', 'plu']);
 const F_KASUS     = new Set(['nom', 'gen', 'dat', 'akk']);
-const F_GENUS     = new Set(['msk', 'fem', 'neu', 'mas']);  // mas = alias for msk
+const F_GENUS     = new Set(['msk', 'fem', 'neu', 'mas']);
 const F_PERSON    = new Set(['p1', 'p2', 'p3', 'p2form']);
 const F_ARTIKEL   = new Set(['def', 'ind', 'indef', 'neg', '-']);
 const F_STEIGER   = new Set(['pos', 'kom', 'sup']);
@@ -28,11 +27,10 @@ const F_NAM_REGION = new Set([
   'arabisch','persisch','bantuisch','ägyptisch','meso-amerikanisch',
   'polynesisch','indisch','chinesisch','japanisch','rnd',
 ]);
-const F_DICE = new Set(['d4','d6','d8','d10','d12','d20']);
-const F_PRO_SUB  = new Set(['pers','refl','poss','dem','rel','quant']);
-const F_ART_SUB  = new Set(['def','ind','neg','poss','dem','w','quant']);
+const F_DICE    = new Set(['d4','d6','d8','d10','d12','d20']);
+const F_PRO_SUB = new Set(['pers','refl','poss','dem','rel','quant']);
+const F_ART_SUB = new Set(['def','ind','neg','poss','dem','w','quant']);
 
-// Allowed flags per token type (union of all valid flag values for that type)
 const TYPE_FLAGS = {
   NOM: new Set([...F_NUMERUS, ...F_KASUS, ...F_ARTIKEL, ...F_META]),
   ADJ: new Set([...F_NUMERUS, ...F_KASUS, ...F_GENUS, ...F_ARTIKEL, ...F_STEIGER, ...F_META]),
@@ -40,26 +38,17 @@ const TYPE_FLAGS = {
   PRO: new Set([...F_PRO_SUB, ...F_PERSON, ...F_NUMERUS, ...F_KASUS, ...F_GENUS, ...F_DEM_STEMS, ...F_QUANT_STEMS, ...F_META]),
   COM: new Set([...F_NUMERUS, ...F_KASUS, ...F_META]),
   NAM: new Set([...F_GENUS, ...F_KASUS, ...F_META, ...F_NAM_VOLK, ...F_NAM_REGION]),
-  FUN: new Set([...F_DICE, ...F_META]),  // die+modifier and counts validated separately
-  DEF: new Set([...F_KASUS, ...F_ARTIKEL, ...F_META, ...F_NUMERUS]), // Defektivum
+  FUN: new Set([...F_DICE, ...F_META]),
+  DEF: new Set([...F_KASUS, ...F_ARTIKEL, ...F_META, ...F_NUMERUS]),
 };
 
-// Variable pattern: Uppercase start, letters, ends with digit(s) — e.g. "Volk1"
 const VARIABLE_PATTERN = /^\p{Lu}\p{L}+[0-9]+$/u;
 const isVariable  = s => VARIABLE_PATTERN.test(s);
 const isRefFlag   = s => s.startsWith('ref:');
 const isNumeric   = s => /^-?[0-9]+$/.test(s);
 const isInlineART = s => s.startsWith('ART:') || s.startsWith('PRO:');
-// FUN: die with optional modifier, e.g. "d6", "d20+1", "d8-2"
 const isFUNDieFlag = s => /^d(4|6|8|10|12|20)([+-][0-9]+)?$/.test(s);
-// FUN: count (positive integer), e.g. "1", "2", "4"
 const isFUNCount   = s => /^[1-9][0-9]*$/.test(s);
-
-/**
- * Änderung 6: Variables (e.g. Tier1, Beruf2) are valid wherever a genus flag
- * would appear — the engine resolves the actual genus at runtime from the data.
- * We allow isVariable() to pass through in flag validation for ALL token types.
- */
 
 // ── Tokenizer ──────────────────────────────────────────────────────────────
 export function tokenize(template) {
@@ -97,13 +86,12 @@ export function validateDSL(template, knownLemmas = new Set()) {
   for (const tok of tokens) {
     if (tok.type === 'literal') continue;
 
-    // Rule 1: Unclosed brace
     if (tok.type === 'unclosed') {
       errors.push({ severity: 'error', message: 'Nicht geschlossene Klammer „{"', start: tok.start, end: tok.end });
       continue;
     }
 
-    const raw = tok.raw;
+    const raw      = tok.raw;
     const colonIdx = raw.indexOf(':');
 
     if (colonIdx === -1) {
@@ -117,19 +105,17 @@ export function validateDSL(template, knownLemmas = new Set()) {
     const lemma    = parts[0];
     const flags    = parts.slice(1);
 
-    // Rule 2: Unknown token type
     if (!VALID_TYPES.has(typePart)) {
       errors.push({ severity: 'error', message: `Unbekannter Token-Typ „${typePart}". Erlaubt: NOM, ADJ, ART, PRO, COM, NAM, FUN, DEF`, start: tok.start, end: tok.end });
       continue;
     }
 
-    // Rule 3: Missing lemma
     if (!lemma || !lemma.trim()) {
       errors.push({ severity: 'error', message: `Fehlendes Lemma nach „${typePart}:"`, start: tok.start, end: tok.end });
       continue;
     }
 
-    // Rule 4: Unknown lemma (NOM / ADJ / COM / DEF)
+    // Änderung 1: knownLemmas enthält jetzt auch virtuelle Klassen
     if (typePart === 'NOM' || typePart === 'ADJ' || typePart === 'COM' || typePart === 'DEF') {
       const baseClass = lemma.replace(/[0-9]+$/, '');
       if (!isVariable(lemma) && !knownLemmas.has(baseClass) && !knownLemmas.has(lemma)) {
@@ -137,7 +123,6 @@ export function validateDSL(template, knownLemmas = new Set()) {
       }
     }
 
-    // Rule 4b: NAM subtype
     if (typePart === 'NAM') {
       const base = lemma.replace(/[0-9]+$/, '');
       if (!['Vorname', 'Nachname'].includes(base)) {
@@ -145,21 +130,17 @@ export function validateDSL(template, knownLemmas = new Set()) {
       }
     }
 
-    // Rule 5: Per-type strict flag validation
     const allowedFlags = TYPE_FLAGS[typePart];
     for (const flag of flags) {
       if (!flag || !flag.trim()) continue;
-      if (isRefFlag(flag))   continue;  // ref:Volk1 — always ok
-      if (isInlineART(flag)) continue;  // ART:/PRO: inline overrides
-      // Änderung 6: Variables (e.g. Tier1, Beruf2) are valid as genus/lemma
-      // references in flags for ALL token types — engine resolves at runtime.
+      if (isRefFlag(flag))   continue;
+      if (isInlineART(flag)) continue;
       if (isVariable(flag))  continue;
 
-      // FUN: die+modifier (e.g. d20+1, d6-2) and count (e.g. 1, 2) are valid
       if (typePart === 'FUN') {
         if (isFUNDieFlag(flag)) continue;
         if (isFUNCount(flag))   continue;
-        if (isNumeric(flag))    continue;  // legacy plain offset
+        if (isNumeric(flag))    continue;
       }
 
       if (!allowedFlags.has(flag)) {
@@ -183,7 +164,7 @@ export function validateTags(value) {
   return [];
 }
 
-// ── Syntax highlight (read-only renderer) ─────────────────────────────────
+// ── Syntax highlight ──────────────────────────────────────────────────────
 const TOKEN_CSS = {
   NOM: 'dsl-nom', ADJ: 'dsl-adj', ART: 'dsl-art', PRO: 'dsl-pro',
   COM: 'dsl-com', NAM: 'dsl-nam', FUN: 'dsl-fun',
@@ -211,11 +192,23 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-export function buildKnownLemmas(schemas) {
+/**
+ * Änderung 1: virtualClassNames optionally passed in from AppStore.
+ * Virtuelle Klassen werden genauso behandelt wie echte Schema-Lemmas.
+ */
+/**
+ * Ä1: Akzeptiert jetzt 3 getrennte Arrays statt eines kombinierten.
+ * virtualNomen, virtualDefektiva, virtualAdjektive sind string-Arrays.
+ */
+export function buildKnownLemmas(schemas, virtualNomen = [], virtualDefektiva = [], virtualAdjektive = []) {
   const known = new Set();
   for (const s of schemas) {
     if (s.lemma) known.add(s.lemma);
     if (s.id)    known.add(s.id);
+  }
+  for (const name of [...virtualNomen, ...virtualDefektiva, ...virtualAdjektive]) {
+    const trimmed = name.trim();
+    if (trimmed) known.add(trimmed);
   }
   return known;
 }

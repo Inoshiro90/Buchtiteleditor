@@ -1,9 +1,17 @@
 // scripts/ui/sidebar.js
 //
-// Fixes applied:
-//  P1 — Edit + Delete always visible; touch events decoupled from click
-//  P2 — Drag always enabled regardless of sort mode
-//  P3 — scrollTop saved/restored across re-renders
+// Änderung 1: Virtuelle Klassen als Dialog-Button (Panel entfernt)
+// Problem 3: Sidebar Rename — vollständige Neuimplementierung ohne blur-Hack
+//
+// Root Cause Problem 3:
+//   render(container) wird durch AppStore.on('rows'/'schemas'/'activeSchema') getriggert.
+//   Das zerstört das Input-Element mitten im Edit → blur feuert auf entferntem Element
+//   → document.activeElement ist nicht mehr der Input → setTimeout-Prüfung schlägt fehl.
+//
+// Fix:
+//   _renameActive-Flag: render() wird übersprungen solange ein Rename läuft.
+//   Nach commit/cancel wird ein aufgeschobener Render nachgeholt.
+//   Kein blur-basiertes Schließen mehr — stattdessen pointerdown auf document.
 
 import { AppStore }    from '../store/AppStore.js';
 import { db }          from '../db/db.js';
@@ -27,20 +35,25 @@ const GROUP_LABELS = {
   adjektiv: `${icon14('shapes')} Adjektive`,
 };
 
-const ICON_X     = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
-const ICON_EDIT  = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>`;
-const ICON_SORT  = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>`;
-const ICON_DRAG  = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9"  cy="5"  r="1" fill="currentColor"/><circle cx="9"  cy="12" r="1" fill="currentColor"/><circle cx="9"  cy="19" r="1" fill="currentColor"/><circle cx="15" cy="5"  r="1" fill="currentColor"/><circle cx="15" cy="12" r="1" fill="currentColor"/><circle cx="15" cy="19" r="1" fill="currentColor"/></svg>`;
+const ICON_X    = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
+const ICON_EDIT = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>`;
+const ICON_SORT = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>`;
+const ICON_DRAG = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="5" r="1" fill="currentColor"/><circle cx="9" cy="12" r="1" fill="currentColor"/><circle cx="9" cy="19" r="1" fill="currentColor"/><circle cx="15" cy="5" r="1" fill="currentColor"/><circle cx="15" cy="12" r="1" fill="currentColor"/><circle cx="15" cy="19" r="1" fill="currentColor"/></svg>`;
 
 // ── State ──────────────────────────────────────────────────────────────────
 let _metaMap        = {};
 let _activeDropdown = null;
 
+// Problem 3 Fix: verhindert render() während ein Rename-Edit aktiv ist
+let _renameActive   = false;
+let _pendingRender  = false;
+let _sidebarContainer = null;
+
 // ── Init ───────────────────────────────────────────────────────────────────
 export async function initSidebar(container) {
+  _sidebarContainer = container;
   _metaMap = await getAllMeta();
 
-  // Pre-load row counts from DB for all schemas
   const schemas = AppStore.get('schemas') ?? [];
   for (const schema of schemas) {
     if (_metaMap[schema.id]?.rowCount == null) {
@@ -55,15 +68,25 @@ export async function initSidebar(container) {
 
   render(container);
 
-  AppStore.on('schemas',      () => { getAllMeta().then(m => { _metaMap = m; render(container); }); });
-  AppStore.on('activeSchema', () => render(container));
-  AppStore.on('rows',         () => { getAllMeta().then(m => { _metaMap = m; render(container); }); });
+  // Alle Store-Listener — werden durch _renameActive geblockt
+  AppStore.on('schemas',        () => { getAllMeta().then(m => { _metaMap = m; scheduleRender(container); }); });
+  AppStore.on('activeSchema',   () => scheduleRender(container));
+  AppStore.on('rows',           () => { getAllMeta().then(m => { _metaMap = m; scheduleRender(container); }); });
+  AppStore.on('virtualClasses', () => scheduleRender(container));
+}
+
+/** Rendert sofort oder merkt sich einen ausstehenden Render für nach dem Rename. */
+function scheduleRender(container) {
+  if (_renameActive) {
+    _pendingRender = true;
+  } else {
+    render(container);
+  }
 }
 
 // ── Render ─────────────────────────────────────────────────────────────────
-// P3: save/restore scrollTop to prevent visual jump on re-render
 function render(container) {
-  const nav = container.querySelector('.sidebar-nav');
+  const nav         = container.querySelector('.sidebar-nav');
   const savedScroll = nav ? nav.scrollTop : 0;
 
   const schemas = AppStore.get('schemas') ?? [];
@@ -89,8 +112,7 @@ function render(container) {
     </div>
     <div class="sidebar-nav">
       ${orderedGroups.map(([group, items]) => {
-        const sortMode = SORTABLE_GROUPS.has(group) ? getSortMode(group) : 'default';
-        // P2: drag always enabled — apply manual order always, sort on top of it
+        const sortMode  = SORTABLE_GROUPS.has(group) ? getSortMode(group) : 'default';
         const baseOrder = SORTABLE_GROUPS.has(group) ? applyManualOrder(items, group) : items;
         const sorted    = sortMode === 'default' ? baseOrder : sortSchemas(baseOrder, sortMode, _metaMap);
 
@@ -106,24 +128,20 @@ function render(container) {
               </button>
             ` : ''}
           </div>
-          <!-- P2: all items always draggable -->
           <div class="sidebar-items-list" data-group="${group}">
             ${sorted.map(s => {
-              const badge = getSortBadgeValue(s.id, sortMode, _metaMap);
+              const badge    = getSortBadgeValue(s.id, sortMode, _metaMap);
               const isActive = active?.id === s.id;
               return `
               <div class="sidebar-item-row ${isActive ? 'active' : ''}" data-schema-id="${s.id}">
-                <!-- P2: drag handle always visible -->
                 <span class="sidebar-drag-handle" data-drag="${s.id}" title="Verschieben" aria-label="Verschieben">
                   ${ICON_DRAG}
                 </span>
-                <!-- P1: main button for navigation only -->
                 <button class="sidebar-item-nav" data-nav-id="${s.id}" title="${s.label}">
                   <span class="sidebar-item-icon">${getIcon(s.type)}</span>
                   <span class="sidebar-item-label" data-label-id="${s.id}">${s.label}</span>
                   ${badge ? `<span class="sidebar-item-badge">${badge}</span>` : ''}
                 </button>
-                <!-- P1: Edit + Delete always visible, outside nav button, no overlap -->
                 ${s.type !== 'genre' ? `
                   <span class="sidebar-item-actions">
                     <button class="sidebar-action-btn sidebar-rename-btn"
@@ -144,58 +162,78 @@ function render(container) {
     </div>
     <div class="sidebar-footer">
       <button class="sidebar-new-class-btn" id="btn-new-class">${icon14('list-plus')} Neue Klasse</button>
+      <!-- Änderung 1: Virtuelle Klassen als Dialog-Button -->
+      <button class="sidebar-new-class-btn sidebar-db-btn" id="btn-virtual-classes" title="Virtuelle Klassen verwalten">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>
+        </svg>
+        Virtuelle Klassen
+      </button>
       <button class="sidebar-new-class-btn sidebar-db-btn" id="btn-database">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <ellipse cx="12" cy="5" rx="9" ry="3"/>
+          <path d="M3 5V19A9 3 0 0 0 21 19V5"/>
+          <path d="M3 12A9 3 0 0 0 21 12"/>
+        </svg>
         Datenbank
       </button>
+      <button class="sidebar-new-class-btn sidebar-db-btn" id="btn-class-map" title="Klassen-Map für Buchtitelgenerator">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+          <polyline points="10 9 9 9 8 9"/>
+        </svg>
+        Klassen-Map
+      </button>
       <button class="sidebar-new-class-btn sidebar-db-btn" id="btn-batch">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
         Batch
       </button>
     </div>
   `;
 
-  // P3: restore scroll position after DOM replacement
   const newNav = container.querySelector('.sidebar-nav');
   if (newNav && savedScroll > 0) newNav.scrollTop = savedScroll;
 
   bindEvents(container, schemas);
 }
 
-// ── Event Binding ──────────────────────────────────────────────────────────
-// P1: Each button is its own element — no overlap, no propagation ambiguity
+// ── Events ─────────────────────────────────────────────────────────────────
 function bindEvents(container, schemas) {
 
-  // Navigation (select schema)
   container.querySelectorAll('.sidebar-item-nav').forEach(btn => {
-    // Use a single unified handler — touchend for mobile, click for desktop
-    // P1: prevents double-trigger by tracking touch state
     let _touchHandled = false;
 
     btn.addEventListener('touchend', e => {
       _touchHandled = true;
-      e.preventDefault();         // suppress following click
+      e.preventDefault();
       e.stopPropagation();
-      const id = btn.dataset.navId;
-      const schema = schemas.find(s => s.id === id);
+      const schema = schemas.find(s => s.id === btn.dataset.navId);
       if (schema) AppStore.set('activeSchema', schema);
     }, { passive: false });
 
     btn.addEventListener('click', e => {
       if (_touchHandled) { _touchHandled = false; return; }
-      const id = btn.dataset.navId;
-      const schema = schemas.find(s => s.id === id);
+      const schema = schemas.find(s => s.id === btn.dataset.navId);
       if (schema) AppStore.set('activeSchema', schema);
     });
 
-    // Double-click label to rename (desktop)
     btn.querySelector('.sidebar-item-label')?.addEventListener('dblclick', e => {
       e.stopPropagation();
       startRename(btn.dataset.navId, container, schemas);
     });
   });
 
-  // Rename buttons — P1: fully isolated, dedicated element
   container.querySelectorAll('.sidebar-rename-btn').forEach(btn => {
     let _touchHandled = false;
 
@@ -213,7 +251,6 @@ function bindEvents(container, schemas) {
     });
   });
 
-  // Delete buttons — P1: fully isolated, dedicated element
   container.querySelectorAll('.sidebar-delete-btn').forEach(btn => {
     let _touchHandled = false;
 
@@ -231,7 +268,6 @@ function bindEvents(container, schemas) {
     });
   });
 
-  // Sort buttons
   container.querySelectorAll('.sidebar-sort-btn').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
@@ -239,16 +275,23 @@ function bindEvents(container, schemas) {
     });
   });
 
-  // P2: Drag & drop — always active, per group list
   container.querySelectorAll('.sidebar-items-list').forEach(list => {
     bindDragDrop(list, list.dataset.group, container);
   });
 
-  // Footer
+  // Footer buttons
   container.querySelector('#btn-new-class')?.addEventListener('click', () =>
     document.dispatchEvent(new CustomEvent('editor:open-new-class')));
+
+  // Änderung 1: Virtuelle Klassen Dialog
+  container.querySelector('#btn-virtual-classes')?.addEventListener('click', () =>
+    document.dispatchEvent(new CustomEvent('editor:open-virtual-classes')));
+  container.querySelector('#btn-class-map')?.addEventListener('click', () =>
+    document.dispatchEvent(new CustomEvent('editor:open-class-map')));
+
   container.querySelector('#btn-database')?.addEventListener('click', () =>
     document.dispatchEvent(new CustomEvent('editor:open-database')));
+
   container.querySelector('#btn-batch')?.addEventListener('click', () =>
     document.dispatchEvent(new CustomEvent('editor:open-batch')));
 
@@ -263,27 +306,73 @@ function bindEvents(container, schemas) {
 }
 
 // ── Rename ─────────────────────────────────────────────────────────────────
+// Problem 3 Fix: Vollständige Neuimplementierung
+//
+// Strategie:
+//   1. _renameActive = true → render() wird übersprungen (scheduleRender merkt Pending)
+//   2. Kein blur-basiertes Schließen
+//   3. pointerdown auf document erkennt "außerhalb" — aber NICHT wenn Target der Input selbst ist
+//   4. Nach commit/cancel: _renameActive = false → ausstehende Renders nachholen
+//
 function startRename(schemaId, container, schemas) {
   const schema = schemas.find(s => s.id === schemaId);
   if (!schema) return;
+  if (_renameActive) return; // Verhindert doppelten Start
 
   const labelEl = container.querySelector(`[data-label-id="${schemaId}"]`);
   if (!labelEl) return;
 
   const currentLabel = schema.label;
 
+  // Phase 1: Input erstellen und einfügen
   const input = document.createElement('input');
   input.type      = 'text';
   input.value     = currentLabel;
   input.className = 'sidebar-rename-input';
+
+  _renameActive  = true;
+  _pendingRender = false;
   labelEl.replaceWith(input);
   input.focus();
   input.select();
 
+  // Phase 2: Event-Handler
+  const onKey = e => {
+    if (e.key === 'Enter')  { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+    // Alle anderen Keys (inkl. Pfeile, Pos1, Ende, Backspace) normal durchlassen
+  };
+
+  // pointerdown außerhalb des Inputs → commit
+  // WICHTIG: mousedown/pointerdown auf dem Input selbst NICHT abfangen
+  const onOutsidePointer = e => {
+    if (e.target === input || input.contains(e.target)) return; // Klick IM Input → ignorieren
+    commit();
+  };
+
+  input.addEventListener('keydown', onKey);
+  // capture:true damit wir vor anderen Handlern laufen
+  document.addEventListener('pointerdown', onOutsidePointer, { capture: true });
+
+  function cleanup() {
+    input.removeEventListener('keydown', onKey);
+    document.removeEventListener('pointerdown', onOutsidePointer, { capture: true });
+  }
+
   const commit = async () => {
+    if (!_renameActive) return;
     cleanup();
+    _renameActive = false;
+
     const newLabel = input.value.trim() || currentLabel;
     restoreLabel(newLabel);
+
+    // Aufgeschobene Renders nachholen
+    if (_pendingRender) {
+      _pendingRender = false;
+      render(container);
+    }
+
     if (newLabel === currentLabel) return;
 
     const updated = schemas.map(s => s.id === schemaId ? { ...s, label: newLabel } : s);
@@ -293,38 +382,32 @@ function startRename(schemaId, container, schemas) {
     if (active?.id === schemaId) AppStore.set('activeSchema', { ...active, label: newLabel });
   };
 
-  const cancel = () => { cleanup(); restoreLabel(currentLabel); };
+  const cancel = () => {
+    if (!_renameActive) return;
+    cleanup();
+    _renameActive = false;
+    restoreLabel(currentLabel);
+
+    if (_pendingRender) {
+      _pendingRender = false;
+      render(container);
+    }
+  };
 
   function restoreLabel(text) {
     const span = document.createElement('span');
-    span.className        = 'sidebar-item-label';
-    span.dataset.labelId  = schemaId;
-    span.textContent      = text;
-    input.replaceWith(span);
+    span.className       = 'sidebar-item-label';
+    span.dataset.labelId = schemaId;
+    span.textContent     = text;
+    if (input.parentNode) input.replaceWith(span);
   }
-
-  function cleanup() {
-    input.removeEventListener('blur', commit);
-    input.removeEventListener('keydown', onKey);
-  }
-
-  const onKey = e => {
-    if (e.key === 'Enter')  { e.preventDefault(); commit(); }
-    if (e.key === 'Escape') { e.preventDefault(); cancel(); }
-  };
-
-  input.addEventListener('blur', commit);
-  input.addEventListener('keydown', onKey);
 }
 
 // ── Drag & Drop ────────────────────────────────────────────────────────────
-// P2: always-on drag for all sortable groups
 function bindDragDrop(list, group, sidebarContainer) {
   if (!SORTABLE_GROUPS.has(group)) return;
-
   let dragRow = null;
 
-  // Use drag handles as the drag source (touch-drag via pointer events)
   list.querySelectorAll('.sidebar-drag-handle').forEach(handle => {
     const row = handle.closest('.sidebar-item-row');
     if (!row) return;
@@ -352,11 +435,8 @@ function bindDragDrop(list, group, sidebarContainer) {
     list.querySelectorAll('.sidebar-item-row').forEach(r => r.classList.remove('drag-over'));
     target.classList.add('drag-over');
     const rect = target.getBoundingClientRect();
-    if (e.clientY < rect.top + rect.height / 2) {
-      list.insertBefore(dragRow, target);
-    } else {
-      list.insertBefore(dragRow, target.nextSibling);
-    }
+    if (e.clientY < rect.top + rect.height / 2) list.insertBefore(dragRow, target);
+    else list.insertBefore(dragRow, target.nextSibling);
   });
 
   list.addEventListener('dragleave', e => {
@@ -438,7 +518,6 @@ function getIcon(type) {
   }
 }
 
-// ── Theme ──────────────────────────────────────────────────────────────────
 export function setTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   try { localStorage.setItem('btg-editor-theme', theme); } catch (_) {}

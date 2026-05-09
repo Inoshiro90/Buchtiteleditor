@@ -5,11 +5,11 @@
 
 // ── 1. Genus → allowed declinationRule values ──────────────────────────────
 export const GENUS_TO_RULES = {
-  maskulinum: ['starkeDeklination', 'schwacheDeklination', 'gemischteDeklination', 'fremdWort', 'eigenName'],
-  neutrum: ['starkeDeklination', 'gemischteDeklination', 'fremdWort', 'eigenName'],
-  femininum: ['starkeDeklination', 'schwacheDeklination', 'fremdWort', 'eigenName'],
+  maskulinum: ['starkeDeklination', 'schwacheDeklination', 'gemischteDeklination', 'fremdWort', 'eigenName', 'substantiviertesAdjektiv'],
+  neutrum: ['starkeDeklination', 'gemischteDeklination', 'fremdWort', 'eigenName', 'substantiviertesAdjektiv'],
+  femininum: ['starkeDeklination', 'schwacheDeklination', 'fremdWort', 'eigenName', 'substantiviertesAdjektiv'],
   // catch-all for unknown / empty genus
-  '': ['starkeDeklination', 'schwacheDeklination', 'gemischteDeklination', 'fremdWort', 'eigenName'],
+  '': ['starkeDeklination', 'schwacheDeklination', 'gemischteDeklination', 'fremdWort', 'eigenName', 'substantiviertesAdjektiv'],
 };
 
 // ── 2. declinationRule → candidate patterns (codes only, stored in cell) ───
@@ -19,15 +19,17 @@ export const RULE_TO_PATTERNS = {
   gemischteDeklination: ['W3', 'W4'],
   fremdWort:            ['fremdWort'],
   eigenName:            ['eigenName'],
+  substantiviertesAdjektiv: ['substantiviertesAdjektiv'],
+
 };
 
 // ── 3. Per-genus allowed pattern codes ────────────────────────────────────
 // Intersect with RULE_TO_PATTERNS to get the final list.
 const GENUS_PATTERNS = {
-  maskulinum: ['S1', 'S2', 'S4', 'S5', 'S6', 'W1', 'W3', 'W4', 'fremdWort', 'eigenName'],
-  neutrum: ['S1', 'S2', 'S4', 'S5', 'S6', 'W3', 'W4', 'fremdWort', 'eigenName'],
-  femininum: ['S3', 'S5', 'S6', 'W2', 'fremdWort', 'eigenName'],
-  '': ['S1','S2','S3','S4','S5','S6','W1','W2','W3','W4','fremdWort','eigenName'],
+  maskulinum: ['S1', 'S2', 'S4', 'S5', 'S6', 'W1', 'W3', 'W4', 'fremdWort', 'eigenName', 'substantiviertesAdjektiv'],
+  neutrum: ['S1', 'S2', 'S4', 'S5', 'S6', 'W3', 'W4', 'fremdWort', 'eigenName', 'substantiviertesAdjektiv'],
+  femininum: ['S3', 'S5', 'S6', 'W2', 'fremdWort', 'eigenName', 'substantiviertesAdjektiv'],
+  '': ['S1','S2','S3','S4','S5','S6','W1','W2','W3','W4','fremdWort','eigenName','substantiviertesAdjektiv'],
 };
 
 // ── 4. Pattern metadata (display label and plural suffix) ──────────────────
@@ -43,7 +45,8 @@ export const PATTERN_INFO = {
   W3: { label: 'W3: gemischt -(e)s/-(e)n', suffix: '-(e)s, -(e)n',  genus: ['maskulinum','neutrum'] },
   W4: { label: 'W4: gemischt -(e)ns/-(e)n',suffix: '-(e)ns, -(e)n', genus: ['maskulinum','neutrum'] },
   fremdWort: { label: 'fremdWort',          suffix: '-, s',          genus: ['maskulinum','neutrum','femininum'] },
-  eigenName: { label: 'Eigenname',          suffix: '-, s',          genus: ['maskulinum','neutrum','femininum'] },
+  eigenName: { label: 'eigenName',          suffix: '-, s',          genus: ['maskulinum','neutrum','femininum'] },
+  substantiviertesAdjektiv: { label: 'Substantiviertes Adjektiv', suffix: '', genus: ['maskulinum','neutrum','femininum'] },
 };
 
 // Dropdown label shown to user: "S1: -(e)s, -¨e"

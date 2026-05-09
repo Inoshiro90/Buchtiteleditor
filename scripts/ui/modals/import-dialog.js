@@ -261,6 +261,10 @@ export function openImportDialog() {
     const mapping = getMapping(fields);
     const mode = sel('import-mode')?.value ?? 'append';
 
+    // Änderung 3: Snapshot vor Import auf Undo-Stack
+    const existingRows = AppStore.get('rows') ?? [];
+    AppStore.pushUndo(schema.id, existingRows);
+
     const imported = applyColumnMapping(importedRaw, mapping).map((r, i) => ({
       ...r, _id: `import_${Date.now()}_${i}`,
     }));
@@ -270,6 +274,8 @@ export function openImportDialog() {
     const withDups = detectDuplicates(merged, schema.type);
     const dupCount = withDups.filter(r => r._isDuplicate).length;
 
+    // Problem 6: State korrekt setzen, dann Event dispatchen → table.js
+    // führt setGridOption + refreshCells durch
     AppStore.set('rows', withDups);
     await db.set('tables', schema.id, withDups);
     document.dispatchEvent(new CustomEvent('editor:rows-changed', { detail: { rows: withDups } }));

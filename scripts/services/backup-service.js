@@ -1,5 +1,6 @@
 // scripts/services/backup-service.js
 // JSON-Export, -Import und Datenbank-Reset
+// Änderung 1: virtualClasses in Export/Import/Reset integriert
 
 import { db }              from '../db/db.js';
 import { AppStore }        from '../store/AppStore.js';
@@ -16,14 +17,13 @@ function typeToGroup(type) {
   }
 }
 
-// Umgekehrt: Exportgruppe → Typ
 function groupToType(group) {
   switch (group) {
-    case 'genre':    return 'genre';
-    case 'nomen':    return 'nomen';
-    case 'defektiva':return 'defektivum';
-    case 'adjektive':return 'adjektiv';
-    default:         return 'nomen';
+    case 'genre':     return 'genre';
+    case 'nomen':     return 'nomen';
+    case 'defektiva': return 'defektivum';
+    case 'adjektive': return 'adjektiv';
+    default:          return 'nomen';
   }
 }
 
@@ -47,25 +47,14 @@ function stripMeta(row) {
 
 // ── Export ─────────────────────────────────────────────────────────────────
 /**
- * Exportiert alle Tabellen als JSON mit der Struktur:
- * {
- *   version, exportedAt, customSchemas,
- *   tables: {
- *     genre:    { "genre": [{...}] },
- *     nomen:    { "Waffe": [{...}], "Tier": [{...}], ... },
- *     defektiva:{ "Gebirge": [{...}], ... },
- *     adjektive:{ "PersonAussehen": [{...}], ... }
- *   }
- * }
+ * Exportiert alle Tabellen als JSON. Version 2-Format + virtualClasses (Änderung 1).
  */
 export async function exportDatabaseAsJSON() {
   const schemas    = AppStore.get('schemas') ?? [];
   const storedKeys = await db.keys('tables');
 
-  // Build a lookup: schemaId → type
   const schemaTypeMap = new Map(schemas.map(s => [s.id, s.type ?? 'nomen']));
 
-  // Initialize grouped structure
   const tables = {
     genre:     {},
     nomen:     {},
@@ -74,19 +63,23 @@ export async function exportDatabaseAsJSON() {
   };
 
   for (const key of storedKeys) {
-    const rows     = await db.get('tables', key);
-    const cleaned  = (rows ?? []).map(stripMeta);
+    const rows       = await db.get('tables', key);
+    const cleaned    = (rows ?? []).map(stripMeta);
     const schemaType = schemaTypeMap.get(key) ?? 'nomen';
     const group      = typeToGroup(schemaType);
     tables[group][key] = cleaned;
   }
 
-  const customSchemas = schemas.filter(s => s.custom === true);
+  const customSchemas  = schemas.filter(s => s.custom === true);
+  const virtualClassesNomen     = AppStore.get('virtualClassesNomen')     ?? '';
+  const virtualClassesDefektiva = AppStore.get('virtualClassesDefektiva') ?? '';
+  const virtualClassesAdjektive = AppStore.get('virtualClassesAdjektive') ?? '';
 
   const payload = {
-    version:      2,
-    exportedAt:   new Date().toISOString(),
+    version:        2,
+    exportedAt:     new Date().toISOString(),
     customSchemas,
+    virtualClassesNomen, virtualClassesDefektiva, virtualClassesAdjektive,
     tables,
   };
 
@@ -101,10 +94,6 @@ export async function exportDatabaseAsJSON() {
 }
 
 // ── Import ─────────────────────────────────────────────────────────────────
-/**
- * Akzeptiert sowohl v1- (flaches tables-Objekt) als auch v2-Format (gruppiert).
- * Fehlende Klassen werden automatisch angelegt.
- */
 export async function importDatabaseFromJSON(file) {
   const text = await readFileAsText(file);
   let payload;
@@ -125,7 +114,6 @@ export async function importDatabaseFromJSON(file) {
   const flatTables = {};
 
   if (payload.version >= 2 || isGroupedFormat(payload.tables)) {
-    // v2: grouped format
     for (const [group, classMap] of Object.entries(payload.tables)) {
       const type = groupToType(group);
       if (typeof classMap !== 'object' || Array.isArray(classMap)) continue;
@@ -134,7 +122,6 @@ export async function importDatabaseFromJSON(file) {
       }
     }
   } else {
-    // v1: flat format — type unknown, attempt detection from existing schemas
     const existingSchemas = AppStore.get('schemas') ?? [];
     const schemaTypeMap   = new Map(existingSchemas.map(s => [s.id, s.type ?? 'nomen']));
     for (const [schemaId, rows] of Object.entries(payload.tables)) {
@@ -145,7 +132,6 @@ export async function importDatabaseFromJSON(file) {
     }
   }
 
-  // ── Write each table, creating missing classes as needed ─────────────────
   const existingSchemas = AppStore.get('schemas') ?? [];
   const existingIds     = new Set(existingSchemas.map(s => s.id));
   const schemasToAdd    = [];
@@ -156,7 +142,6 @@ export async function importDatabaseFromJSON(file) {
       continue;
     }
 
-    // Add internal IDs if missing
     const withIds = rows.map((r, i) => ({
       ...r,
       _id: r._id ?? `import_${schemaId}_${i}_${Date.now()}`,
@@ -165,15 +150,13 @@ export async function importDatabaseFromJSON(file) {
     await db.set('tables', schemaId, withIds);
     imported++;
 
-    // Create missing class schema
     if (!existingIds.has(schemaId)) {
       const newSchema = buildSchemaForImport(schemaId, type);
       schemasToAdd.push(newSchema);
-      existingIds.add(schemaId); // prevent duplicates in this loop
+      existingIds.add(schemaId);
     }
   }
 
-  // ── Register new schemas ─────────────────────────────────────────────────
   if (schemasToAdd.length > 0) {
     const updated = [...existingSchemas, ...schemasToAdd];
     AppStore.set('schemas', updated);
@@ -181,11 +164,10 @@ export async function importDatabaseFromJSON(file) {
     await db.set('schemas', 'custom', custom);
   }
 
-  // ── Restore custom schemas from backup (e.g. after a reset) ─────────────
   if (Array.isArray(payload.customSchemas) && payload.customSchemas.length > 0) {
-    const currentSchemas  = AppStore.get('schemas') ?? [];
-    const currentIds      = new Set(currentSchemas.map(s => s.id));
-    const missingCustom   = payload.customSchemas.filter(s => !currentIds.has(s.id));
+    const currentSchemas = AppStore.get('schemas') ?? [];
+    const currentIds     = new Set(currentSchemas.map(s => s.id));
+    const missingCustom  = payload.customSchemas.filter(s => !currentIds.has(s.id));
     if (missingCustom.length > 0) {
       const updated = [...currentSchemas, ...missingCustom];
       AppStore.set('schemas', updated);
@@ -193,7 +175,21 @@ export async function importDatabaseFromJSON(file) {
     }
   }
 
-  // ── Reload active table ───────────────────────────────────────────────────
+  // Ä1: Virtuelle Klassen wiederherstellen (3 Keys + Legacy-Compat)
+  const vcLegacy = typeof payload.virtualClasses === 'string' ? payload.virtualClasses : '';
+  const vcN = payload.virtualClassesNomen     ?? vcLegacy;
+  const vcD = payload.virtualClassesDefektiva ?? '';
+  const vcA = payload.virtualClassesAdjektive ?? '';
+  for (const [key, val] of [
+    ['virtualClassesNomen', vcN],
+    ['virtualClassesDefektiva', vcD],
+    ['virtualClassesAdjektive', vcA],
+  ]) {
+    AppStore.set(key, val);
+    await db.set('meta', key, val);
+  }
+
+  // Reload active table
   const active = AppStore.get('activeSchema');
   if (active) {
     const freshRows = (await db.get('tables', active.id)) ?? [];
@@ -206,44 +202,37 @@ export async function importDatabaseFromJSON(file) {
 
 // ── Reset ──────────────────────────────────────────────────────────────────
 export async function resetDatabase() {
-  // Wipe ALL tables stored in IndexedDB
   const allKeys = await db.keys('tables');
   for (const key of allKeys) {
     await db.delete('tables', key);
   }
 
-  // Wipe all meta and schema data
   await db.delete('schemas', 'custom');
   await db.delete('meta', 'customVariables');
   await db.delete('meta', 'initialized');
   await db.delete('meta', 'schemaMeta');
   await db.delete('meta', 'schemaOrder');
+  await db.delete('meta', 'virtualClassesNomen');
+  await db.delete('meta', 'virtualClassesDefektiva');
+  await db.delete('meta', 'virtualClassesAdjektive');
 
-  // Reset to EMPTY — no classes, only the 4 category groups remain visible
-  // (categories are rendered from group labels; no schema = empty sidebar section)
   AppStore.set('schemas', []);
   AppStore.set('rows', []);
   AppStore.set('errors', []);
   AppStore.set('crossClassDuplicates', []);
   AppStore.set('activeSchema', null);
+  AppStore.set('virtualClassesNomen',     '');
+  AppStore.set('virtualClassesDefektiva', '');
+  AppStore.set('virtualClassesAdjektive', '');
 
   document.dispatchEvent(new CustomEvent('editor:rows-changed', { detail: { rows: [] } }));
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-
-/**
- * Detect if payload.tables is grouped (v2) by checking if any value is a
- * plain object (not an array) — i.e. { genre: {...}, nomen: {...} }
- */
 function isGroupedFormat(tables) {
   return Object.values(tables).some(v => v !== null && typeof v === 'object' && !Array.isArray(v));
 }
 
-/**
- * Build a minimal schema object for a class that exists in the backup
- * but not in the current database.
- */
 function buildSchemaForImport(id, type) {
   const columns = type === 'adjektiv'   ? ADJ_COLUMNS
                 : type === 'defektivum' ? DEFEKTIV_COLUMNS
