@@ -27,6 +27,64 @@ function row(label, control) {
   return `<div class="form-group"><label class="form-label">${label}</label>${control}</div>`;
 }
 
+// ── Stem-Konstanten (Zielmodell SlotType-Definitionen) ────────────────────
+//
+// WARUM ZWEI GETRENNTE SETS:
+//   DEM_STEM und QUANT_STEM sind laut Zielmodell strikt disjunkte SlotTypes.
+//   Der Validator (slot-schema.js) lehnt DEM_STEM-Werte im QUANT_STEM-Slot ab
+//   und umgekehrt. Das UI muss dasselbe Constraint durchsetzen, indem es
+//   je nach Subtyp exklusiv die korrekte Optionsliste anzeigt.
+//
+//   Falsch (alt): Ein gemeinsames <select> mit optgroup Demonstrativ/Quantor
+//   → User kann "dieser" für PRO:quant wählen → Validator-Fehler
+//
+//   Richtig (neu): Optionen werden per rebuildStemSelect() dynamisch ersetzt
+//   → nur valide Werte für den jeweiligen Subtyp sind wählbar.
+
+const DEM_STEM_OPTIONS = [
+  ['dieser',    'dieser'],
+  ['jener',     'jener'],
+  ['jeder',     'jeder'],
+  ['mancher',   'mancher'],
+  ['solcher',   'solcher'],
+  ['derjenige', 'derjenige'],
+  ['derselbe',  'derselbe'],
+];
+
+const QUANT_STEM_OPTIONS = [
+  ['alle',   'alle'],
+  ['beide',  'beide'],
+  ['einige', 'einige'],
+  ['manche', 'manche'],
+  ['viele',  'viele'],
+  ['wenige', 'wenige'],
+];
+
+/**
+ * Ersetzt die <option>-Elemente eines Stem-<select> strikt anhand des Subtyps.
+ *
+ * @param {HTMLSelectElement} selectEl  Das <select id="pro-stem"> oder <select id="art-stem">
+ * @param {'dem'|'quant'} subtype
+ *
+ * WARUM NICHT NUR AUSBLENDEN:
+ *   Wenn der User "dieser" selektiert hat und dann zu quant wechselt, bleibt
+ *   der value="dieser" im DOM. buildPROToken() liest diesen Wert und produziert
+ *   {PRO:quant|...|dieser}. Der Validator verwirft das Token.
+ *   Durch echtes Ersetzen der Optionen wird der value automatisch auf den
+ *   ersten validen Wert zurückgesetzt (Browser-Verhalten bei unbekanntem value).
+ */
+function rebuildStemSelect(selectEl, subtype) {
+  if (!selectEl) return;
+  const opts   = subtype === 'quant' ? QUANT_STEM_OPTIONS : DEM_STEM_OPTIONS;
+  const prev   = selectEl.value;
+  selectEl.innerHTML =
+    `<option value="">— kein Stamm —</option>` +
+    opts.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  // Vorherigen Wert wiederherstellen wenn er noch valide ist, sonst Reset.
+  const stillValid = opts.some(([v]) => v === prev);
+  selectEl.value = stillValid ? prev : '';
+}
+
 // ── Variable list ──────────────────────────────────────────────────────────
 /**
  * Änderung 2: Gibt ausschließlich Variablen (Base1, Base2, Base3) zurück —
@@ -271,15 +329,17 @@ function buildPROToken() {
   const defNumVar = sel('pro-def-num-hidden')?.value ?? '';
   const numPart   = (numerus === 'def' && defNumVar) ? `def:${defNumVar}` : numerus;
   const kasus     = sel('pro-kasus')?.value ?? 'nom';
-  // Genus (für pers/p3, dem, rel)
+  // Genus (für pers/p3, dem, rel, quant)
   const genus     = sel('pro-genus')?.value ?? 'msk';
   const genusVar  = sel('pro-genus-var-hidden')?.value ?? '';
-  const genusPart = (genus === 'var' && genusVar) ? genusVar : genus;
+  // FIX: var:Waffe1 statt Waffe1 — GENUS_EXT erwartet 'var:<Variable>'-Präfix
+  const genusPart = (genus === 'var' && genusVar) ? `var:${genusVar}` : genus;
   const stem      = sel('pro-stem')?.value ?? '';
   // Ziel-Genus + Ziel-Numerus (für poss, optional für pers/p3)
   const zGenus    = sel('pro-ziel-genus')?.value ?? 'msk';
   const zGenusVar = sel('pro-ziel-genus-var-hidden')?.value ?? '';
-  const zGenusPart= (zGenus === 'var' && zGenusVar) ? zGenusVar : zGenus;
+  // FIX: var:-Präfix für Ziel-Genus
+  const zGenusPart= (zGenus === 'var' && zGenusVar) ? `var:${zGenusVar}` : zGenus;
   const zNumerus  = sel('pro-ziel-numerus')?.value ?? 'sgl';
   const zDefVar   = sel('pro-ziel-def-hidden')?.value ?? '';
   const zNumPart  = (zNumerus === 'def' && zDefVar) ? `def:${zDefVar}` : zNumerus;
@@ -291,14 +351,38 @@ function buildPROToken() {
     // Possessor-Genus (nur bei p3 relevant: sein- vs. ihr-)
     const possGenUS  = sel('pro-poss-genus')?.value ?? 'msk';
     const possGenVar = sel('pro-poss-genus-var-hidden')?.value ?? '';
-    const possGenusPart = (possGenUS === 'var' && possGenVar) ? possGenVar : possGenUS;
+    // FIX: var:-Präfix für Possessor-Genus (P3_GENUS erwartet 'var:<Variable>')
+    const possGenusPart = (possGenUS === 'var' && possGenVar) ? `var:${possGenVar}` : possGenUS;
     const p3GenusFlag = person === 'p3' ? `|${possGenusPart}` : '';
     // Format: |person|[possessor-genus wenn p3]|possessor-num|kasus|ziel-genus|ziel-num
     flags = `|${person}${p3GenusFlag}|${numPart}|${kasus}|${zGenusPart}|${zNumPart}`;
+  } else if (subtype === 'genposs') {
+    // Schema: genposs | GENUS_ANT | NUMERUS_ANT — kein Person/Kasus/Genus nötig
+    const antGenus = sel('pro-ant-genus')?.value ?? 'msk';
+    const antNum   = sel('pro-ant-num')?.value ?? 'sgl';
+    flags = `|${antGenus}|${antNum}`;
+  } else if (subtype === 'indef') {
+    // Schema: indef | INDEF_FORM | KASUS
+    const indefForm = sel('pro-indef-form')?.value ?? 'man';
+    flags = `|${indefForm}|${kasus}`;
+  } else if (subtype === 'int') {
+    // Schema: int | INT_FORM | KASUS | [GENUS_EXT wenn welch]
+    const intForm = sel('pro-int-form')?.value ?? 'wer';
+    flags = `|${intForm}|${kasus}`;
+    if (intForm === 'welch') flags += `|${genusPart}`;
+  } else if (subtype === 'rez') {
+    // Schema: rez | REZ_KASUS (nur dat|akk)
+    flags = `|${kasus}`;
   } else if (subtype === 'pers' && person === 'p3') {
-    // 3. Person: Genus des Subjekts
+    // 3. Person: Genus des Subjekts (nur bei sgl Pflicht, bei plu optional)
     flags = `|${person}|${numPart}|${kasus}|${genusPart}`;
-  } else if (['dem','quant'].includes(subtype)) {
+  } else if (subtype === 'dem') {
+    // Schema: dem | NUMERUS_EXT | KASUS | GENUS_EXT | DEM_STEM?
+    flags = `|${numPart}|${kasus}|${genusPart}`;
+    if (stem) flags += `|${stem}`;
+  } else if (subtype === 'quant') {
+    // Schema: quant | NUMERUS_EXT | KASUS | GENUS_EXT | QUANT_STEM
+    // FIX: getrennt von 'dem' — nur QUANT_STEM-Werte sind im Stem-Select verfügbar
     flags = `|${numPart}|${kasus}|${genusPart}`;
     if (stem) flags += `|${stem}`;
   } else if (subtype === 'rel') {
@@ -321,8 +405,10 @@ export function openPRODialog() {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div style="grid-column:1/-1">
         ${row('Subtyp', makeSelect('pro-subtype',
-          ['pers','refl','poss','dem','rel','quant'],
-          ['Personalpronomen','Reflexivpronomen','Possessivpronomen','Demonstrativpronomen','Relativpronomen','Quantorpronomen']
+          ['pers','refl','poss','genposs','dem','rel','quant','indef','int','rez'],
+          ['Personalpronomen','Reflexivpronomen','Possessivpronomen','Genitivischer Possessiv (dessen/deren)',
+           'Demonstrativpronomen','Relativpronomen','Quantorpronomen',
+           'Indefinitpronomen (man/jemand/niemand)','Interrogativpronomen (wer/was/welch)','Reziprokes Pronomen (einander)']
         ))}
       </div>
 
@@ -349,18 +435,8 @@ export function openPRODialog() {
 
       <!-- Stem (für dem/quant) -->
       <div id="pro-stem-wrap" style="grid-column:1/-1;display:none">
-        ${row('Stamm (für dem/quant)', `<select class="form-select" id="pro-stem">
-          <option value="">—</option>
-          <optgroup label="Demonstrativ">
-            <option value="dieser">dieser</option><option value="jener">jener</option>
-            <option value="derjenige">derjenige</option><option value="derselbe">derselbe</option>
-          </optgroup>
-          <optgroup label="Quantor">
-            <option value="alle">alle</option><option value="beide">beide</option>
-            <option value="einige">einige</option><option value="viele">viele</option>
-            <option value="wenige">wenige</option><option value="jemand">jemand</option>
-            <option value="niemand">niemand</option>
-          </optgroup>
+        ${row('Stamm', `<select class="form-select" id="pro-stem">
+          <option value="">— kein Stamm —</option>
         </select>`)}
       </div>
 
@@ -469,7 +545,7 @@ export function openPRODialog() {
         const isPoss = sub === 'poss';
         const isRefl = sub === 'refl';
         const needsGenus = !isPoss &&
-          ((sub === 'pers' && pers === 'p3') || sub === 'dem' || sub === 'rel');
+          ((sub === 'pers' && pers === 'p3') || sub === 'dem' || sub === 'rel' || sub === 'quant');
         const needsStem  = sub === 'dem' || sub === 'quant';
         const isP3poss   = isPoss && pers === 'p3';
 
@@ -477,8 +553,12 @@ export function openPRODialog() {
         dialog.querySelector('#pro-genus-wrap').style.display        = needsGenus ? '' : 'none';
         dialog.querySelector('#pro-stem-wrap').style.display         = needsStem  ? '' : 'none';
         dialog.querySelector('#pro-ziel-section').style.display      = isPoss     ? '' : 'none';
-        // Possessor-Genus nur bei poss + p3
         dialog.querySelector('#pro-poss-genus-section').style.display = isP3poss  ? '' : 'none';
+
+        // Stem-Optionen strikt nach Subtyp neu aufbauen (FIX: verhindert DEM_STEM in quant)
+        if (needsStem) {
+          rebuildStemSelect(sel('pro-stem'), sub);
+        }
 
         // Genus-Variable Toggle
         const showGenusVar = needsGenus && sel('pro-genus')?.value === 'var';
@@ -559,43 +639,43 @@ function buildARTToken() {
   const subtype = sel('art-subtype')?.value ?? 'def';
   const kasus   = sel('art-kasus')?.value ?? 'nom';
 
-  // Ziel-Genus (gilt für alle Subtypen)
+  // Ziel-Genus (gilt für alle non-poss non-genposs Subtypen)
   const genus    = sel('art-genus')?.value ?? 'msk';
   const genusVar = sel('art-genus-var-hidden')?.value ?? '';
-  const genusPart = (genus === 'var' && genusVar) ? genusVar : genus;
+  // FIX: var:-Präfix — GENUS_EXT erwartet 'var:<Variable>', nicht bare 'Waffe1'
+  const genusPart = (genus === 'var' && genusVar) ? `var:${genusVar}` : genus;
 
   if (subtype === 'poss') {
-    // Possessor-Person
     const person = sel('art-person')?.value ?? 'p1';
-
-    // Possessor-Genus (nur bei p3)
     const possGenUS  = sel('art-poss-genus')?.value ?? 'msk';
     const possGenVar = sel('art-poss-genus-var-hidden')?.value ?? '';
-    const possPart   = (possGenUS === 'var' && possGenVar) ? possGenVar : possGenUS;
+    // FIX: var:-Präfix für Possessor-Genus (P3_GENUS)
+    const possPart   = (possGenUS === 'var' && possGenVar) ? `var:${possGenVar}` : possGenUS;
     const p3Flag     = (person === 'p3') ? `|${possPart}` : '';
-
-    // Possessor-Numerus (wer besitzt)
     const possNum    = sel('art-poss-num')?.value ?? 'sgl';
     const possNumVar = sel('art-poss-num-var-hidden')?.value ?? '';
     const possNumPart = (possNum === 'def' && possNumVar) ? `def:${possNumVar}` : possNum;
-
-    // Ziel-Numerus (was wird besessen)
     const zNum    = sel('art-ziel-num')?.value ?? 'sgl';
     const zNumVar = sel('art-ziel-num-var-hidden')?.value ?? '';
     const zNumPart = (zNum === 'def' && zNumVar) ? `def:${zNumVar}` : zNum;
-
-    // Parallel zu PRO:poss: person|[poss-genus]|poss-num|kasus|ziel-genus|ziel-num
     return `{ART:poss|${person}${p3Flag}|${possNumPart}|${kasus}|${genusPart}|${zNumPart}}`;
   }
 
-  // Non-poss: Numerus = Numerus des Nomens, kein Possessor
+  if (subtype === 'genposs') {
+    // Schema: genposs | GENUS_ANT | NUMERUS_ANT
+    const antGenus = sel('art-ant-genus')?.value ?? 'msk';
+    const antNum   = sel('art-ant-num')?.value ?? 'sgl';
+    return `{ART:genposs|${antGenus}|${antNum}}`;
+  }
+
+  // Non-poss/non-genposs: Numerus + Kasus + Genus des Nomens
   const numerus   = sel('art-numerus')?.value ?? 'sgl';
   const defNumVar = sel('art-def-num-hidden')?.value ?? '';
   const numPart   = (numerus === 'def' && defNumVar) ? `def:${defNumVar}` : numerus;
   const stem      = sel('art-stem')?.value ?? '';
 
   let flags = `|${numPart}|${kasus}|${genusPart}`;
-  if (['dem','quant'].includes(subtype) && stem) flags += `|${stem}`;
+  if ((subtype === 'dem' || subtype === 'quant') && stem) flags += `|${stem}`;
   return `{ART:${subtype}${flags}}`;
 }
 
@@ -607,8 +687,10 @@ export function openARTDialog() {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div style="grid-column:1/-1">
         ${row('Subtyp', makeSelect('art-subtype',
-          ['def','ind','neg','poss','dem','w','quant'],
-          ['bestimmter Artikel','unbestimmter Artikel','negativer Artikel','Possessivartikel','Demonstrativartikel','w-Artikel (welch-)','Quantorartikel']
+          ['def','ind','zero','neg','poss','genposs','dem','w','quant'],
+          ['bestimmter Artikel','unbestimmter Artikel','Null-Artikel (∅)','negativer Artikel',
+           'Possessivartikel','Genitivischer Possessiv (dessen/deren)',
+           'Demonstrativartikel','w-Artikel (welch-)','Quantorartikel']
         ))}
       </div>
 
@@ -626,18 +708,8 @@ export function openARTDialog() {
           ${row('Genus-Variable', `<div id="art-genus-var-cb-wrap"></div><input type="hidden" id="art-genus-var-hidden" />`)}
         </div>
         <div id="art-stem-wrap" style="grid-column:1/-1;display:none">
-          ${row('Stamm (für dem/quant)', `<select class="form-select" id="art-stem">
-            <option value="">—</option>
-            <optgroup label="Demonstrativ">
-              <option value="dieser">dieser</option><option value="jener">jener</option>
-              <option value="jeder">jeder</option><option value="mancher">mancher</option>
-              <option value="solcher">solcher</option>
-            </optgroup>
-            <optgroup label="Quantor">
-              <option value="alle">alle</option><option value="beide">beide</option>
-              <option value="einige">einige</option><option value="viele">viele</option>
-              <option value="wenige">wenige</option>
-            </optgroup>
+          ${row('Stamm', `<select class="form-select" id="art-stem">
+            <option value="">— kein Stamm —</option>
           </select>`)}
         </div>
       </div>
@@ -758,14 +830,18 @@ export function openARTDialog() {
 
       // Subtyp → poss vs. non-poss Felder
       const adaptToSubtype = () => {
-        const sub    = sel('art-subtype')?.value ?? 'def';
-        const isPoss = sub === 'poss';
-        const isStem = ['dem','quant'].includes(sub);
+        const sub      = sel('art-subtype')?.value ?? 'def';
+        const isPoss   = sub === 'poss';
+        const isGenPos = sub === 'genposs';
+        const isStem   = sub === 'dem' || sub === 'quant';
 
-        q('art-nonpro-fields').style.display = isPoss ? 'none'     : 'contents';
-        q('art-poss-fields').style.display   = isPoss ? ''         : 'none';
-        if (!isPoss) {
+        // genposs hat eigene Felder (ant_genus + ant_num), keine Standardfelder
+        q('art-nonpro-fields').style.display  = (isPoss || isGenPos) ? 'none' : 'contents';
+        q('art-poss-fields').style.display    = isPoss    ? ''   : 'none';
+        q('art-genposs-fields') && (q('art-genposs-fields').style.display = isGenPos ? '' : 'none');
+        if (!isPoss && !isGenPos) {
           q('art-stem-wrap').style.display = isStem ? '' : 'none';
+          if (isStem) rebuildStemSelect(sel('art-stem'), sub);
         }
         upd();
       };

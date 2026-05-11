@@ -1045,6 +1045,133 @@ svg[aria-hidden='true'] {
 	text-decoration: underline wavy var(--c-dsl-err);
 }
 
+/* ── DSL Diagnostic Portal ───────────────────────────────────────────────────
+ *
+ * WARUM POSITION:FIXED AN <BODY>:
+ *   AG Grid setzt overflow:hidden auf mehreren Ebenen der Tabellen-Hierachie:
+ *   .ag-root-wrapper, .ag-body-viewport, .ag-row, .ag-cell
+ *   Jedes position:absolute-Kind wird von overflow:hidden geclippt, sobald es
+ *   die Grenzen des nächsten positioned-ancestor überschreitet.
+ *
+ *   position:fixed ignoriert alle overflow:hidden-Ancestor — der Clip-Kontext
+ *   ist immer das Viewport. Das Portal hängt an <body> und wird via JS an die
+ *   Zell-BoundingClientRect gekoppelt.
+ *
+ *   Das floating:left/top wird von DSLCellEditor.afterGuiAttached() gesetzt
+ *   und per ResizeObserver synchron gehalten.
+ *
+ * WARUM EIGENES PORTAL (statt .cm-tooltip):
+ *   CodeMirror's eigene Lint-Tooltips sind hover-only und kurz (title-Attribut-
+ *   ähnlich). Das Portal rendert alle aktiven Fehler persistent während der
+ *   Bearbeitung — der User muss nicht jedes Token einzeln hovern.
+ * ─────────────────────────────────────────────────────────────────────────── */
+#dsl-diagnostic-portal {
+	position: fixed;
+	z-index: calc(var(--z-overlay) + 50); /* Über AG Grid, unter Modals */
+	display: none; /* Standard: unsichtbar */
+	flex-direction: column;
+	gap: 4px;
+	max-width: 480px;
+	min-width: 260px;
+	padding: 6px 8px;
+	background: var(--bg-surface);
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-sm, 4px);
+	box-shadow: var(--shadow-card, 0 4px 16px rgba(0,0,0,0.18));
+	font-family: var(--font-sans);
+	font-size: 11.5px;
+	line-height: 1.45;
+	pointer-events: none; /* Kein Hover-Block über der Tabelle */
+	/* Overflow-Schutz für sehr lange Fehlermeldungen */
+	max-height: 160px;
+	overflow-y: auto;
+}
+
+#dsl-diagnostic-portal.visible {
+	display: flex;
+}
+
+.dsl-diag-item {
+	display: flex;
+	align-items: flex-start;
+	gap: 5px;
+	white-space: normal;     /* Zeilenumbruch für lange Meldungen */
+	word-break: break-word;  /* Kein horizontales Overflow */
+	padding: 2px 0;
+}
+
+.dsl-diag-item::before {
+	flex-shrink: 0;
+	font-size: 10px;
+	margin-top: 1px;
+}
+
+.dsl-diag-error {
+	color: var(--c-dsl-err, #e74c3c);
+}
+
+.dsl-diag-error::before {
+	content: '✕';
+	color: var(--c-dsl-err, #e74c3c);
+}
+
+.dsl-diag-warning {
+	color: var(--color-warn, #e07b39);
+}
+
+.dsl-diag-warning::before {
+	content: '⚠';
+	color: var(--color-warn, #e07b39);
+}
+
+/* ── CodeMirror Lint Tooltip (CM-eigene Hover-Tooltip) ───────────────────────
+ *
+ * tooltipParent = document.body sorgt dafür, dass CM den .cm-tooltip-Div
+ * direkt an <body> hängt. Dadurch greift overflow:hidden der Zelle nicht.
+ *
+ * Diese CSS-Regeln stylen den CM-internen Hover-Tooltip (erscheint beim
+ * Hovern über die rote Wellenlinie) kompatibel mit dem Warm Design System.
+ * ─────────────────────────────────────────────────────────────────────────── */
+.cm-tooltip.cm-tooltip-lint {
+	background: var(--bg-surface) !important;
+	border: 1px solid var(--border-color) !important;
+	border-radius: var(--radius-sm, 4px) !important;
+	box-shadow: var(--shadow-card) !important;
+	font-family: var(--font-sans) !important;
+	font-size: 11.5px !important;
+	line-height: 1.45 !important;
+	color: var(--text-primary) !important;
+	max-width: 420px !important;
+	white-space: normal !important;
+	word-break: break-word !important;
+	padding: 6px 10px !important;
+	z-index: calc(var(--z-overlay) + 50) !important;
+	pointer-events: none !important;
+}
+
+.cm-tooltip .cm-diagnostic {
+	padding: 0 !important;
+	border: none !important;
+	font-size: inherit !important;
+}
+
+.cm-tooltip .cm-diagnostic-error {
+	border-left: 3px solid var(--c-dsl-err, #e74c3c) !important;
+	padding-left: 6px !important;
+	color: var(--c-dsl-err, #e74c3c) !important;
+}
+
+.cm-tooltip .cm-diagnostic-warning {
+	border-left: 3px solid var(--color-warn, #e07b39) !important;
+	padding-left: 6px !important;
+	color: var(--color-warn, #e07b39) !important;
+}
+
+/* Lint-Gutter ausblenden (kein Platz in Inline-Zellen) */
+.dsl-editor-wrapper .cm-gutters {
+	display: none !important;
+}
+
 /* ── Modal / Dialog ──────────────────────────────────────────── */
 dialog {
 	background: var(--bg-surface);

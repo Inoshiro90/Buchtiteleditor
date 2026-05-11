@@ -96,6 +96,22 @@ function buildDSLExtensions(cm, onUpdate, onCommit, onCancel) {
     }));
   }, { delay: 300 });
 
+  // WARUM tooltipParent = document.body:
+  //   CodeMirror rendert Lint-Tooltips standardmäßig in den .cm-editor-Container,
+  //   der innerhalb der AG-Grid-Zelle liegt. AG Grid setzt overflow:hidden auf
+  //   Zellen und Rows → Tooltip wird abgeschnitten.
+  //   Mit tooltipParent = document.body wird der Tooltip außerhalb des Zell-Containers
+  //   an <body> angehängt und per position:fixed positioniert → kein Clipping möglich.
+  //
+  //   Zusätzlich: Das DSL-Diagnostic-Panel (unten) rendert Fehler in einem globalen
+  //   Portal-Element (#dsl-diagnostic-portal) klar unterhalb der aktiven Zelle.
+  let tooltipParentExt = [];
+  try {
+    tooltipParentExt = [EditorView.tooltipParent.of(document.body)];
+  } catch (_) {
+    // tooltipParent-Facet nicht verfügbar in dieser CM-Version → ignorieren
+  }
+
   // Keymap: Enter = commit, Escape = cancel, Tab = insert spaces
   const dslKeymap = keymap.of([
     { key: 'Enter', run: () => { onCommit(); return true; } },
@@ -103,11 +119,70 @@ function buildDSLExtensions(cm, onUpdate, onCommit, onCancel) {
     ...defaultKeymap,
   ]);
 
+  // Diagnostic-Portal-Listener:
+  // Hält den globalen #dsl-diagnostic-portal synchron mit dem aktuellen Lint-Status.
+  // Wird bei jeder Doc-Änderung neu evaluiert (via updateListener).
+  const diagnosticPortalListener = EditorView.updateListener.of((update) => {
+    if (update.docChanged) onUpdate(update.state.doc.toString());
+  });
+
   const updateListener = EditorView.updateListener.of((update) => {
     if (update.docChanged) onUpdate(update.state.doc.toString());
   });
 
-  return [DSL_THEME, dslLinter, lintGutter(), dslKeymap, highlightActiveLine(), updateListener];
+  return [DSL_THEME, ...tooltipParentExt, dslLinter, lintGutter(), dslKeymap, highlightActiveLine(), updateListener];
+}
+
+// ── Diagnostic Portal ─────────────────────────────────────────────────────
+// Ein globales floating <div> außerhalb jeder Tabellenzelle.
+// Rendert Fehlermeldungen unterhalb der aktiven Zelle — kein overflow:hidden-Clip.
+//
+// ARCHITEKTUR:
+//   Das Portal-Element wird einmalig an <body> angehängt (z-index: --z-overlay+1).
+//   DSLCellEditor.afterGuiAttached() richtet einen ResizeObserver auf die Zelle ein,
+//   der die Portal-Position synchron hält (scrollt/resized der User → Portal folgt).
+//   DSLCellEditor.destroy() blendet das Portal aus und disconnected den Observer.
+//
+// WARUM NICHT CSS-ONLY:
+//   overflow:hidden auf .ag-root-wrapper, .ag-body-viewport, .ag-cell → keine Chance
+//   für position:absolute-Kinder zu "escapen". Nur position:fixed an <body> löst das.
+
+let _portal = null;
+function getDiagnosticPortal() {
+  if (_portal) return _portal;
+  _portal = document.createElement('div');
+  _portal.id = 'dsl-diagnostic-portal';
+  _portal.setAttribute('aria-live', 'polite');
+  _portal.setAttribute('role', 'status');
+  document.body.appendChild(_portal);
+  return _portal;
+}
+
+function showDiagnosticPortal(cellEl, diagnostics) {
+  const portal = getDiagnosticPortal();
+  if (!diagnostics || diagnostics.length === 0) {
+    portal.classList.remove('visible');
+    portal.innerHTML = '';
+    return;
+  }
+  const rect = cellEl.getBoundingClientRect();
+  portal.style.left  = `${rect.left}px`;
+  portal.style.top   = `${rect.bottom + 4}px`;
+  portal.style.width = `${Math.max(rect.width, 300)}px`;
+  portal.innerHTML = diagnostics.map(d =>
+    `<div class="dsl-diag-item dsl-diag-${d.severity}">${escDiag(d.message)}</div>`
+  ).join('');
+  portal.classList.add('visible');
+}
+
+function hideDiagnosticPortal() {
+  const portal = getDiagnosticPortal();
+  portal.classList.remove('visible');
+  portal.innerHTML = '';
+}
+
+function escDiag(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 // ── Cell Renderer (read-only: coloured spans) ─────────────────────────────
@@ -189,9 +264,42 @@ export class DSLCellEditor {
     this._view?.focus();
     const len = this._value.length;
     this._view?.dispatch({ selection: { anchor: len, head: len } });
+
+    // Diagnostic-Portal: Lint-Ergebnisse unterhalb der Zelle schweben lassen.
+    // ResizeObserver hält Position synchron wenn die Zelle sich bewegt/skaliert.
+    const cellEl = this._wrapper?.closest?.('.ag-cell') ?? this._wrapper;
+    if (cellEl) {
+      this._diagObserver = new ResizeObserver(() => {
+        const { errors, warnings } = this._currentDiagnostics ?? { errors: [], warnings: [] };
+        if (errors.length + warnings.length > 0) showDiagnosticPortal(cellEl, [...errors, ...warnings]);
+      });
+      this._diagObserver.observe(cellEl);
+      this._diagCellEl = cellEl;
+
+      // Laufende Synchronisation: Lint-Ergebnisse bei jeder View-Änderung prüfen.
+      // Wir pollen den Lint-State via MutationObserver auf .cm-lintRange-error-Elemente.
+      this._diagMutation = new MutationObserver(() => {
+        const schemas  = AppStore.get('schemas') ?? [];
+        const knownLemmas = buildKnownLemmas(schemas);
+        const raw      = this._value;
+        const diags    = validateDSL(raw, knownLemmas);
+        const errors   = diags.filter(d => d.severity === 'error').map(d => ({ severity: 'error',   message: d.message }));
+        const warnings = diags.filter(d => d.severity === 'warning').map(d => ({ severity: 'warning', message: d.message }));
+        this._currentDiagnostics = { errors, warnings };
+        if (errors.length + warnings.length > 0) showDiagnosticPortal(cellEl, [...errors, ...warnings]);
+        else hideDiagnosticPortal();
+      });
+      // Observe the editor wrapper for lint-mark changes
+      if (this._wrapper) {
+        this._diagMutation.observe(this._wrapper, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
+      }
+    }
   }
 
   destroy() {
+    hideDiagnosticPortal();
+    this._diagObserver?.disconnect();
+    this._diagMutation?.disconnect();
     this._view?.destroy();
     this._view = null;
   }
